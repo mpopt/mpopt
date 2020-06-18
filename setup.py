@@ -22,21 +22,32 @@ from setuptools import setup, find_packages
 with open("README.md", "r") as readme_file:
     readme = readme_file.read()
 
-requirements = ["pip>=20.1.1", "wheel>=0.34.2", "numpy>=1.18.2", "typing>=3.7.4.1", "casadi>=3.5.1", "pytest>=5.4.1", "matplotlib>=3.2.1", "scipy>=1.4.1", "jupyterlab>=2.1.3"]
+requirements = ["numpy>=1.18", "typing>=3.7", "casadi>=3.5", "pytest>=5.4", "matplotlib>=3.2", "scipy>=1.4", "jupyterlab>=2.1"]
 
 setup(
     name="mpopt",
     version="0.0.1",
     author="Devakumar THAMMISETTY",
     author_email="deva.aerospace@gmail.com",
-    description="Multi-phase Optimal control problem solver",
+    description="An open source Multi-phase nonlinear Optimal control problem solver using Pseudo-spectral collocation",
     long_description=readme,
     long_description_content_type="text/markdown",
-    url="https://github.com/mpopt/homepage/",
+    url="https://github.com/mpopt",
     packages=find_packages(),
     install_requires=requirements,
     classifiers=[
         "Programming Language :: Python :: 3.6",
         "License :: OSI Approved :: GNU Lesser General Public License v3.0 (LGPLv3)",
+        'Intended Audience :: Developers, Research community across Academic and Public institutions',
+        'Topic :: Software Development :: Build Tools',
     ],
+    keywords='optimal control, multi-phase OCP, collocation, adaptive grid refinement, nonlinear optimization',
+    project_urls={
+        #'Documentation': 'https://packaging.python.org/tutorials/distributing-packages/',
+        #'Funding': 'https://donate.pypi.org',
+        #'Say Thanks!': 'http://saythanks.io/to/example',
+        'Source': 'https://github.com/mpopt/mpopt/',
+        #'Tracker': 'https://github.com/pypa/sampleproject/issues',
+        },
+   python_requires='>=3', 
 )
