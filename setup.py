@@ -29,7 +29,7 @@ setup(
     version="0.0.1",
     author="Devakumar THAMMISETTY",
     author_email="deva.aerospace@gmail.com",
-    description="An open source Multi-phase nonlinear Optimal control problem solver using Pseudo-spectral collocation",
+    description="A Multi-phase nonlinear Optimal control problem solver using Pseudo-spectral collocation",
     long_description=readme,
     long_description_content_type="text/markdown",
     url="https://github.com/mpopt",
@@ -39,7 +39,7 @@ setup(
         "Programming Language :: Python :: 3.6",
         "License :: OSI Approved :: GNU Lesser General Public License v3.0 (LGPLv3)",
         'Intended Audience :: Developers, Research community across Academic and Public institutions',
-        'Topic :: Software Development :: Build Tools',
+        'Topic :: Software Development :: Optimal Control',
     ],
     keywords='optimal control, multi-phase OCP, collocation, adaptive grid refinement, nonlinear optimization',
     project_urls={
