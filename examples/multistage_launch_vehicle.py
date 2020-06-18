@@ -23,7 +23,6 @@ Author : Devakumar Thammisetty
 Description : OCP definition for use in NLP transcription
 gpops2.com/resources/gpops2UsersGuide.pdf
 """
-from context import mpopt
 from mpopt import mp
 import numpy as np
 import casadi as ca

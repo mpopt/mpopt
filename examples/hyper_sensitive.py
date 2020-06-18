@@ -22,7 +22,6 @@ Created: 13th May 2020
 Author : Devakumar Thammisetty
 Description : Hyper-sensitive OCP
 """
-from context import mpopt
 from mpopt import mp
 
 ocp = mp.OCP(n_states=1, n_controls=1, n_phases=1)

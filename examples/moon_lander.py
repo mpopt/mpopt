@@ -21,7 +21,6 @@
 Created: 5th May 2020
 Author : Devakumar Thammisetty
 """
-from context import mpopt
 from mpopt import mp
 
 ocp = mp.OCP(n_states=2, n_controls=1)

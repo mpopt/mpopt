@@ -22,11 +22,11 @@ from setuptools import setup, find_packages
 with open("README.md", "r") as readme_file:
     readme = readme_file.read()
 
-requirements = ["numpy>=1.18", "typing>=3.7", "casadi>=3.5", "pytest>=5.4", "matplotlib>=3.2", "scipy>=1.4", "jupyterlab>=2.1"]
+requirements = ["wheel>=0.34", "numpy>=1.18", "typing>=3.7", "casadi>=3.5", "pytest>=5.4", "matplotlib>=3.2", "scipy>=1.4", "jupyterlab>=2.1"]
 
 setup(
     name="mpopt",
-    version="0.0.1",
+    version="0.0.2",
     author="Devakumar THAMMISETTY",
     author_email="deva.aerospace@gmail.com",
     description="A Multi-phase nonlinear Optimal control problem solver using Pseudo-spectral collocation",
