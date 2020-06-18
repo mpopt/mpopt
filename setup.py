@@ -37,9 +37,9 @@ setup(
     install_requires=requirements,
     classifiers=[
         "Programming Language :: Python :: 3.6",
-        "License :: OSI Approved :: GNU Lesser General Public License v3.0 (LGPLv3)",
-        'Intended Audience :: Developers, Research community across Academic and Public institutions',
-        'Topic :: Software Development :: Optimal Control',
+        #"License :: OSI Approved :: GNU Lesser General Public License v3.0 (LGPLv3)",
+        #'Intended Audience :: Developers, Research community across Academic and Public institutions',
+        #'Topic :: Software Development :: Optimal Control',
     ],
     keywords='optimal control, multi-phase OCP, collocation, adaptive grid refinement, nonlinear optimization',
     project_urls={
