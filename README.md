@@ -8,7 +8,7 @@
 
 Main features of the solver are :
  
-* Customizable collocation approximation support using Legendre-Gauss-Radau, Legendre-Gauss-Lobatto, Chebyshev-Gauss-Lobatto roots, etc.
+* Customizable collocation approximation, compatable with Legendre-Gauss-Radau, Legendre-Gauss-Lobatto, Chebyshev-Gauss-Lobatto roots.
 * Intuitive definition of OCP/multi-phase OCP
 * Single-phase as well as multi-phase OCP solving capability using user defined collocation approximation
 * Adaptive grid refinement schemes for robust solutions
