@@ -1,10 +1,9 @@
 ## Build status
+[![pypi pacakge](https://img.shields.io/pypi/v/mpopt.svg)](https://pypi.org/project/mpopt)
+[![Build Status](https://travis-ci.org/mpopt/mpopt.svg?branch=master
+)](https://travis-ci.org/mpopt/mpopt.svg?branch=master)
 
-.. image:: https://img.shields.io/pypi/v/mpopt.svg
-   :target: https://pypi.org/project/mpopt
-
-.. image:: https://travis-ci.org/mpopt/mpopt.svg?branch=master
-  :target: https://travis-ci.org/mpopt/mpopt.svg?branch=master
+[![codecov.io Code Coverage](https://img.shields.io/codecov/c/github/dwyl/hapi-auth-jwt2.svg?maxAge=2592000)](https://codecov.io/github/dwyl/hapi-auth-jwt2?branch=master)
 
 # MultiPhase Optimal control problem solver (mpopt)
 
