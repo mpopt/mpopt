@@ -1,7 +1,7 @@
 #
 # Copyright (c) 2020 LA EPFL.
 #
-# This file is part of MPOPT 
+# This file is part of MPOPT
 # (see http://github.com/mpopt).
 #
 # This program is free software: you can redistribute it and/or modify
@@ -21,6 +21,7 @@
 Created: 5th May 2020
 Author : Devakumar Thammisetty
 """
+from context import mpopt
 from mpopt import mp
 
 ocp = mp.OCP(n_states=2, n_controls=1)
