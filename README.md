@@ -15,8 +15,8 @@ Main features of the solver are :
 * NLP solution using algorithmic differation capability offered by [CasADi](https://web.casadi.org/), multiple NLP solver compatibility 'ipopt', 'snopt', 'sqpmethod' etc.
 * Sophisticated post processing module for interactive visualization of solution
 ```python
-x, u, t = post.get_data()
-fig, axs = plot_phases()
+x, u, t = post.get_data(interpolate=True)
+fig, axs = post.plot_phases()
 ```
 
 ### Installation
