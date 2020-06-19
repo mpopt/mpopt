@@ -1,11 +1,16 @@
+## Build status
+
+.. image:: https://img.shields.io/pypi/v/mpopt.svg
+   :target: https://pypi.org/project/mpopt
+
+.. image:: https://travis-ci.org/mpopt/mpopt.svg?branch=master
+  :target: https://travis-ci.org/mpopt/mpopt.svg?branch=master
+
 # MultiPhase Optimal control problem solver (mpopt)
 
 *MPOPT* is a collection of modules to solve multi-stage optimal control problems(OCPs) using pseudo-spectral collocation method. This module creates Nonlinear programming problem (NLP) from the given OCP description, which is then solved by CasADi nlpsolver using various available plugins such as *ipopt*, *snopt* etc.
 
-## Existing methods for the optimizer
-1. Fixed-segment-widths
-2. Adaptive-segment-widths (Iterative)
-3. Adaptive-segment-widths (Solve at one go.)
+Main features of the solver are :
 
 ### Examples
 * Single-phase OCPs
