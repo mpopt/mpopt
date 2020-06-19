@@ -1,11 +1,8 @@
-## Build status
 [![pypi pacakge](https://img.shields.io/pypi/v/mpopt.svg)](https://pypi.org/project/mpopt)
-[![Build Status](https://travis-ci.org/mpopt/mpopt.svg?branch=master
-)](https://travis-ci.org/mpopt/mpopt.svg?branch=master)
+[![Build Status](https://travis-ci.org/mpopt/mpopt.svg?branch=master)](https://travis-ci.org/mpopt/mpopt.svg?branch=master)
+[![Coverage Status](https://coveralls.io/repos/github/mpopt/mpopt/badge.svg)](https://coveralls.io/github/mpopt/mpopt)
 
-[![codecov.io Code Coverage](https://img.shields.io/codecov/c/github/dwyl/hapi-auth-jwt2.svg?maxAge=2592000)](https://codecov.io/github/dwyl/hapi-auth-jwt2?branch=master)
-
-# MultiPhase Optimal control problem solver (mpopt)
+### MPOPT
 
 *MPOPT* is a collection of modules to solve multi-stage optimal control problems(OCPs) using pseudo-spectral collocation method. This module creates Nonlinear programming problem (NLP) from the given OCP description, which is then solved by CasADi nlpsolver using various available plugins such as *ipopt*, *snopt* etc.
 
