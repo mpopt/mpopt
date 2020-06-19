@@ -14,10 +14,10 @@ Main features of the solver are :
 * Adaptive grid refinement schemes for robust solutions
 * NLP solution using algorithmic differation capability offered by [CasADi](https://web.casadi.org/), multiple NLP solver compatibility 'ipopt', 'snopt', 'sqpmethod' etc.
 * Sophisticated post processing module for interactive visualization of solution
-  -  ```python
-    x, u, t = post.get_data()
-    fig, axs = plot_phases()
-    ```
+```python
+x, u, t = post.get_data()
+fig, axs = plot_phases()
+```
 
 ### Installation
 
