@@ -66,8 +66,13 @@ mpo, post = mp.solve(ocp, n_segments=20, poly_orders=3, scheme="LGR", plot=True)
 ## Authors
 
 * **Devakumar THAMMISETTY**
+* **Prof. Colin Jones Neil** (Co-author)
 
 
 ## License
 
 This project is licensed under the GNU LGPL v3 - see the [LICENSE](https://github.com/mpopt/mpopt/blob/master/LICENSE) file for details
+
+## Acknowledgements
+
+* **Petr Listov**
