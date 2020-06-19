@@ -38,6 +38,9 @@ $ python examples/moon_lander.py
 
 ### Getting started
 
+A brief overview of the package and capabilities are demonstrated with simple moon-lander OCP example in Jupyter notebook.
+
+- Get started with [MPOPT](https://github.com/mpopt/mpopt/blob/master/getting_started.ipynb)
 
 ### Documentation
 
