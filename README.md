@@ -44,7 +44,7 @@ A brief overview of the package and capabilities are demonstrated with simple mo
 
 ### Documentation
 
-Work under progress.
+- Refer [Documentation](https://mpopt.readthedocs.io/en/latest/)
 
 ### A sample code to solve moon-lander OCP (2D)
 ```python
