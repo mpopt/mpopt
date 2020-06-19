@@ -66,7 +66,7 @@ mpo, post = mp.solve(ocp, n_segments=20, poly_orders=3, scheme="LGR", plot=True)
 ## Authors
 
 * **Devakumar THAMMISETTY**
-* **Prof. Colin Jones Neil** (Co-author)
+* **Prof. Colin Jones** (Co-author)
 
 
 ## License
