@@ -12,7 +12,7 @@ Main features of the solver are :
 * Intuitive definition of OCP/multi-phase OCP
 * Single-phase as well as multi-phase OCP solving capability using user defined collocation approximation
 * Adaptive grid refinement schemes for robust solutions
-* NLP solution using algorithmic differation capability offered by [CasADi](https://web.casadi.org/), multiple NLP solver compatibility 'ipopt', 'snopt', 'sqpmethod' etc.
+* NLP solution using algorithmic differentiation capability offered by [CasADi](https://web.casadi.org/), multiple NLP solver compatibility 'ipopt', 'snopt', 'sqpmethod' etc.
 * Sophisticated post-processing module for interactive data visualization
 
 ### Installation
