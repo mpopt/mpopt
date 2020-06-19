@@ -33,7 +33,7 @@ class mpopt:
     and calls to NLP solver
 
     Examples :
-        # Moon lander problem
+        >>> # Moon lander problem
         >>> from mpopt import mp
         >>> ocp = mp.OCP(n_states=2, n_controls=1, n_phases=1)
         >>> ocp.dynamics[0] = lambda x, u, t: [x[1], u[0] - 1.5]
@@ -1465,7 +1465,7 @@ class mpopt_h_adaptive(mpopt):
     same number of segments
 
     Examples :
-        # Moon lander problem
+        >>> # Moon lander problem
         >>> from mpopt import mp
         >>> ocp = mp.OCP(n_states=2, n_controls=1, n_phases=1)
         >>> ocp.dynamics[0] = lambda x, u, t: [x[1], u[0] - 1.5]
@@ -2221,7 +2221,7 @@ class mpopt_adaptive(mpopt):
     as optimization variables and solves for them along with the optimization problem.
 
     Examples :
-        # Moon lander problem
+        >>> # Moon lander problem
         >>> from mpopt import mp
         >>> ocp = mp.OCP(n_states=2, n_controls=1, n_phases=1)
         >>> ocp.dynamics[0] = lambda x, u, t: [x[1], u[0] - 1.5]

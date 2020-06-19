@@ -1,0 +1,213 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MPOPT &#8212; mpopt 0.0.2 documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/language_data.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="mpopt package" href="mpopt/mpopt.html" />
+    <link rel="prev" title="Welcome to mpopt’s documentation!" href="index.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <p><a class="reference external" href="https://pypi.org/project/mpopt"><img alt="pypi pacakge" src="https://img.shields.io/pypi/v/mpopt.svg" /></a> <a class="reference external" href="https://travis-ci.org/mpopt/mpopt.svg?branch=master"><img alt="Build Status" src="https://travis-ci.org/mpopt/mpopt.svg?branch=master" /></a> <a class="reference external" href="https://coveralls.io/github/mpopt/mpopt"><img alt="Coverage Status" src="https://coveralls.io/repos/github/mpopt/mpopt/badge.svg" /></a></p>
+<div class="section" id="mpopt">
+<h1>MPOPT<a class="headerlink" href="#mpopt" title="Permalink to this headline">¶</a></h1>
+<p><em>MPOPT</em> is a collection of modules to solve multi-stage optimal control
+problems(OCPs) using pseudo-spectral collocation method. This module
+creates Nonlinear programming problem (NLP) from the given OCP
+description, which is then solved by CasADi nlpsolver using various
+available plugins such as <em>ipopt</em>, <em>snopt</em> etc.</p>
+<p>Main features of the solver are :</p>
+<ul class="simple">
+<li><p>Customizable collocation approximation, compatable with
+Legendre-Gauss-Radau, Legendre-Gauss-Lobatto, Chebyshev-Gauss-Lobatto
+roots.</p></li>
+<li><p>Intuitive definition of OCP/multi-phase OCP</p></li>
+<li><p>Single-phase as well as multi-phase OCP solving capability using user
+defined collocation approximation</p></li>
+<li><p>Adaptive grid refinement schemes for robust solutions</p></li>
+<li><p>NLP solution using algorithmic differentiation capability offered by
+<a class="reference external" href="https://web.casadi.org/">CasADi</a>, multiple NLP solver
+compatibility ‘ipopt’, ‘snopt’, ‘sqpmethod’ etc.</p></li>
+<li><p>Sophisticated post-processing module for interactive data
+visualization</p></li>
+</ul>
+</div>
+<div class="section" id="installation">
+<h1>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h1>
+<p>Install the package using</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ pip install mpopt
+</pre></div>
+</div>
+<p>If you want to downloaded it from source, you may do so either by:</p>
+<ul class="simple">
+<li><p>Downloading it from <a class="reference external" href="https://github.com/mpopt/mpopt">GitHub</a> page</p>
+<ul>
+<li><p>Unzip the folder and you are ready to go</p></li>
+</ul>
+</li>
+<li><p>Or cloning it to a desired directory using git:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">$</span> <span class="pre">git</span> <span class="pre">clone</span> <span class="pre">https://github.com/mpopt/mpopt.git</span></code></p></li>
+</ul>
+</li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ make init
+$ make test
+$ python examples/moon_lander.py
+</pre></div>
+</div>
+</div>
+<div class="section" id="getting-started">
+<h1>Getting started<a class="headerlink" href="#getting-started" title="Permalink to this headline">¶</a></h1>
+<p>A brief overview of the package and capabilities are demonstrated with
+simple moon-lander OCP example in Jupyter notebook.</p>
+<ul class="simple">
+<li><p>Get started with
+<a class="reference external" href="https://github.com/mpopt/mpopt/blob/master/getting_started.ipynb">MPOPT</a></p></li>
+</ul>
+</div>
+<div class="section" id="documentation">
+<h1>Documentation<a class="headerlink" href="#documentation" title="Permalink to this headline">¶</a></h1>
+<p>Work under progress.</p>
+</div>
+<div class="section" id="a-sample-code-to-solve-moon-lander-ocp-2d">
+<h1>A sample code to solve moon-lander OCP (2D)<a class="headerlink" href="#a-sample-code-to-solve-moon-lander-ocp-2d" title="Permalink to this headline">¶</a></h1>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Moon lander OCP direct collocation/multi-segment collocation</span>
+<span class="kn">from</span> <span class="nn">mpopt</span> <span class="kn">import</span> <span class="n">mp</span>
+
+<span class="c1"># Define OCP</span>
+<span class="n">ocp</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">OCP</span><span class="p">(</span><span class="n">n_states</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">n_controls</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="n">ocp</span><span class="o">.</span><span class="n">dynamics</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="n">t</span><span class="p">:</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">u</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="mf">1.5</span><span class="p">]</span>
+<span class="n">ocp</span><span class="o">.</span><span class="n">running_costs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="n">t</span><span class="p">:</span> <span class="n">u</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">ocp</span><span class="o">.</span><span class="n">terminal_constraints</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">xf</span><span class="p">,</span> <span class="n">tf</span><span class="p">,</span> <span class="n">x0</span><span class="p">,</span> <span class="n">t0</span><span class="p">:</span> <span class="p">[</span><span class="n">xf</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">xf</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
+<span class="n">ocp</span><span class="o">.</span><span class="n">x00</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mf">10.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">2.0</span><span class="p">]</span>
+<span class="n">ocp</span><span class="o">.</span><span class="n">lbu</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">ocp</span><span class="o">.</span><span class="n">ubu</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">3</span>
+
+<span class="c1"># Create optimizer(mpo), solve and post process(post) the solution</span>
+<span class="n">mpo</span><span class="p">,</span> <span class="n">post</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">ocp</span><span class="p">,</span> <span class="n">n_segments</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">poly_orders</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">scheme</span><span class="o">=</span><span class="s2">&quot;LGR&quot;</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="authors">
+<h1>Authors<a class="headerlink" href="#authors" title="Permalink to this headline">¶</a></h1>
+<ul class="simple">
+<li><p><strong>Devakumar THAMMISETTY</strong></p></li>
+<li><p><strong>Prof. Colin Jones</strong> (Co-author)</p></li>
+</ul>
+</div>
+<div class="section" id="license">
+<h1>License<a class="headerlink" href="#license" title="Permalink to this headline">¶</a></h1>
+<p>This project is licensed under the GNU LGPL v3 - see the
+<a class="reference external" href="https://github.com/mpopt/mpopt/blob/master/LICENSE">LICENSE</a> file
+for details</p>
+</div>
+<div class="section" id="acknowledgements">
+<h1>Acknowledgements<a class="headerlink" href="#acknowledgements" title="Permalink to this headline">¶</a></h1>
+<ul class="simple">
+<li><p><strong>Petr Listov</strong></p></li>
+</ul>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">mpopt</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">MPOPT</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#installation">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#getting-started">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#documentation">Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#a-sample-code-to-solve-moon-lander-ocp-2d">A sample code to solve moon-lander OCP (2D)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#authors">Authors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#license">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#acknowledgements">Acknowledgements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mpopt/mpopt.html">mpopt package</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="index.html" title="previous chapter">Welcome to mpopt’s documentation!</a></li>
+      <li>Next: <a href="mpopt/mpopt.html" title="next chapter">mpopt package</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Devakumar THAMMISETTY, Colin Jones.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.1.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/README.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

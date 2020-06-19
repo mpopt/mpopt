@@ -1,0 +1,238 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>mpopt package &#8212; mpopt 0.0.2 documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="prev" title="MPOPT" href="../README.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="mpopt-package">
+<h1>mpopt package<a class="headerlink" href="#mpopt-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="module-mpopt.mpopt.mpopt">
+<span id="mpopt-module"></span><h2>mpopt module<a class="headerlink" href="#module-mpopt.mpopt.mpopt" title="Permalink to this headline">¶</a></h2>
+<p>Multiphase Optimal Control Problem Solver</p>
+<p>This is the base class, implementing the OCP discretization, transcription
+and calls to NLP solver</p>
+<dl>
+<dt>Examples :</dt><dd><div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># Moon lander problem</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">mpopt</span> <span class="kn">import</span> <span class="n">mp</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ocp</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">OCP</span><span class="p">(</span><span class="n">n_states</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">n_controls</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">n_phases</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ocp</span><span class="o">.</span><span class="n">dynamics</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="n">t</span><span class="p">:</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">u</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="mf">1.5</span><span class="p">]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ocp</span><span class="o">.</span><span class="n">running_costs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="n">t</span><span class="p">:</span> <span class="n">u</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ocp</span><span class="o">.</span><span class="n">terminal_constraints</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">xf</span><span class="p">,</span> <span class="n">tf</span><span class="p">,</span> <span class="n">x0</span><span class="p">,</span> <span class="n">t0</span><span class="p">:</span> <span class="p">[</span><span class="n">xf</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">xf</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ocp</span><span class="o">.</span><span class="n">x00</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">10</span><span class="p">,</span> <span class="o">-</span><span class="mi">2</span><span class="p">]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ocp</span><span class="o">.</span><span class="n">lbu</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">ocp</span><span class="o">.</span><span class="n">ubu</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">3</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ocp</span><span class="o">.</span><span class="n">lbtf</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">3</span><span class="p">;</span> <span class="n">ocp</span><span class="o">.</span><span class="n">ubtf</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">5</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">opt</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">mpopt</span><span class="p">(</span><span class="n">ocp</span><span class="p">,</span> <span class="n">n_segments</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">poly_orders</span><span class="o">=</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span><span class="o">*</span><span class="mi">20</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">solution</span> <span class="o">=</span> <span class="n">opt</span><span class="o">.</span><span class="n">solve</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">post</span> <span class="o">=</span> <span class="n">opt</span><span class="o">.</span><span class="n">process_results</span><span class="p">(</span><span class="n">solution</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+</div>
+<div class="section" id="module-mpopt.mpopt.Collocation">
+<span id="collocation-module"></span><h2>Collocation module<a class="headerlink" href="#module-mpopt.mpopt.Collocation" title="Permalink to this headline">¶</a></h2>
+<p>Collocation functionality for optimizer</p>
+<p>Functionality related to polynomial basis, respective differential and
+integral matrices calculation is implemented here.</p>
+<p>Numpy polynomial modules is used for calculating differentiation and quadrature weights.
+Hence, computer precision can affect these derivative calculations</p>
+</div>
+<div class="section" id="module-mpopt.mpopt.CollocationRoots">
+<span id="collocation-roots-module"></span><h2>Collocation Roots module<a class="headerlink" href="#module-mpopt.mpopt.CollocationRoots" title="Permalink to this headline">¶</a></h2>
+<p>Functionality related to commonly used gauss quadrature schemes such as</p>
+<p>Legendre-Gauss (LG)
+Legendre-Gauss-Radau (LGR)
+Legendre-Gauss-Lobatto (LGL)
+Chebyshev-Gauss-Lobatto (CGL)</p>
+</div>
+<div class="section" id="module-mpopt.mpopt.OCP">
+<span id="ocp-definition-module"></span><h2>OCP definition module<a class="headerlink" href="#module-mpopt.mpopt.OCP" title="Permalink to this headline">¶</a></h2>
+<p>Define Optimal Control Problem</p>
+<p>Optimal control problem definition in standard Bolza form.</p>
+<dl>
+<dt>Examples of usage:</dt><dd><div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">ocp</span> <span class="o">=</span> <span class="n">OCP</span><span class="p">(</span><span class="n">n_states</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">n_controls</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">n_phases</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ocp</span><span class="o">.</span><span class="n">dynamics</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">a</span><span class="p">:</span> <span class="p">[</span><span class="n">u</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ocp</span><span class="o">.</span><span class="n">path_constraints</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">a</span><span class="p">:</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">u</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ocp</span><span class="o">.</span><span class="n">running_costs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">a</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ocp</span><span class="o">.</span><span class="n">terminal_costs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">xf</span><span class="p">,</span> <span class="n">tf</span><span class="p">,</span> <span class="n">x0</span><span class="p">,</span> <span class="n">t0</span><span class="p">,</span> <span class="n">a</span><span class="p">:</span> <span class="n">xf</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ocp</span><span class="o">.</span><span class="n">terminal_constraints</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">xf</span><span class="p">,</span> <span class="n">tf</span><span class="p">,</span> <span class="n">x0</span><span class="p">,</span> <span class="n">t0</span><span class="p">,</span> <span class="n">a</span><span class="p">:</span> <span class="p">[</span><span class="n">xf</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">2</span><span class="p">]</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+</div>
+<div class="section" id="module-mpopt.mpopt.mpopt_h_adaptive">
+<span id="mpopt-h-adaptive-module"></span><h2>mpopt-h-adaptive module<a class="headerlink" href="#module-mpopt.mpopt.mpopt_h_adaptive" title="Permalink to this headline">¶</a></h2>
+<p>Multi-stage Optimal control problem (OCP) solver which implements iterative
+procedure to refine the segment width in each phase adaptively while keeping the
+same number of segments</p>
+<dl>
+<dt>Examples :</dt><dd><div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># Moon lander problem</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">mpopt</span> <span class="kn">import</span> <span class="n">mp</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ocp</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">OCP</span><span class="p">(</span><span class="n">n_states</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">n_controls</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">n_phases</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ocp</span><span class="o">.</span><span class="n">dynamics</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="n">t</span><span class="p">:</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">u</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="mf">1.5</span><span class="p">]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ocp</span><span class="o">.</span><span class="n">running_costs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="n">t</span><span class="p">:</span> <span class="n">u</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ocp</span><span class="o">.</span><span class="n">terminal_constraints</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">xf</span><span class="p">,</span> <span class="n">tf</span><span class="p">,</span> <span class="n">x0</span><span class="p">,</span> <span class="n">t0</span><span class="p">:</span> <span class="p">[</span><span class="n">xf</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">xf</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ocp</span><span class="o">.</span><span class="n">x00</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">10</span><span class="p">,</span> <span class="o">-</span><span class="mi">2</span><span class="p">]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ocp</span><span class="o">.</span><span class="n">lbu</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">ocp</span><span class="o">.</span><span class="n">ubu</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">3</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ocp</span><span class="o">.</span><span class="n">lbtf</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">3</span><span class="p">;</span> <span class="n">ocp</span><span class="o">.</span><span class="n">ubtf</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">5</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">opt</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">mpopt_h_adaptive</span><span class="p">(</span><span class="n">ocp</span><span class="p">,</span> <span class="n">n_segments</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">poly_orders</span><span class="o">=</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">*</span><span class="mi">3</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">solution</span> <span class="o">=</span> <span class="n">opt</span><span class="o">.</span><span class="n">solve</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">post</span> <span class="o">=</span> <span class="n">opt</span><span class="o">.</span><span class="n">process_results</span><span class="p">(</span><span class="n">solution</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+</div>
+<div class="section" id="module-mpopt.mpopt.mpopt_adaptive">
+<span id="mpopt-adaptive-module"></span><h2>mpopt-adaptive module<a class="headerlink" href="#module-mpopt.mpopt.mpopt_adaptive" title="Permalink to this headline">¶</a></h2>
+<p>Multi-stage Optimal control problem (OCP) solver which implements seg-widths
+as optimization variables and solves for them along with the optimization problem.</p>
+<dl>
+<dt>Examples :</dt><dd><div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># Moon lander problem</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">mpopt</span> <span class="kn">import</span> <span class="n">mp</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ocp</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">OCP</span><span class="p">(</span><span class="n">n_states</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">n_controls</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">n_phases</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ocp</span><span class="o">.</span><span class="n">dynamics</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="n">t</span><span class="p">:</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">u</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="mf">1.5</span><span class="p">]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ocp</span><span class="o">.</span><span class="n">running_costs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="n">t</span><span class="p">:</span> <span class="n">u</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ocp</span><span class="o">.</span><span class="n">terminal_constraints</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">xf</span><span class="p">,</span> <span class="n">tf</span><span class="p">,</span> <span class="n">x0</span><span class="p">,</span> <span class="n">t0</span><span class="p">:</span> <span class="p">[</span><span class="n">xf</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">xf</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ocp</span><span class="o">.</span><span class="n">x00</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">10</span><span class="p">,</span> <span class="o">-</span><span class="mi">2</span><span class="p">]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ocp</span><span class="o">.</span><span class="n">lbu</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">ocp</span><span class="o">.</span><span class="n">ubu</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">3</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ocp</span><span class="o">.</span><span class="n">lbtf</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">3</span><span class="p">;</span> <span class="n">ocp</span><span class="o">.</span><span class="n">ubtf</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">5</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">opt</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">mpopt_adaptive</span><span class="p">(</span><span class="n">ocp</span><span class="p">,</span> <span class="n">n_segments</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">poly_orders</span><span class="o">=</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">*</span><span class="mi">3</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">solution</span> <span class="o">=</span> <span class="n">opt</span><span class="o">.</span><span class="n">solve</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">post</span> <span class="o">=</span> <span class="n">opt</span><span class="o">.</span><span class="n">process_results</span><span class="p">(</span><span class="n">solution</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+</div>
+<div class="section" id="module-mpopt.mpopt.post_process">
+<span id="post-processing-module"></span><h2>post-processing module<a class="headerlink" href="#module-mpopt.mpopt.post_process" title="Permalink to this headline">¶</a></h2>
+<dl class="simple">
+<dt>Process the results of mpopt optimizer for further processing and interactive</dt><dd><p>visualization</p>
+</dd>
+</dl>
+<p>This class contains various methods for processing the solution of OCP</p>
+<dl>
+<dt>Examples:</dt><dd><div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">post</span> <span class="o">=</span> <span class="n">post_process</span><span class="p">(</span><span class="n">solution</span><span class="p">,</span> <span class="n">trajectories</span><span class="p">,</span> <span class="n">options</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">mpopt</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../README.html">MPOPT</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../README.html#installation">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../README.html#getting-started">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../README.html#documentation">Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../README.html#a-sample-code-to-solve-moon-lander-ocp-2d">A sample code to solve moon-lander OCP (2D)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../README.html#authors">Authors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../README.html#license">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../README.html#acknowledgements">Acknowledgements</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">mpopt package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#module-mpopt.mpopt.mpopt">mpopt module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-mpopt.mpopt.Collocation">Collocation module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-mpopt.mpopt.CollocationRoots">Collocation Roots module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-mpopt.mpopt.OCP">OCP definition module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-mpopt.mpopt.mpopt_h_adaptive">mpopt-h-adaptive module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-mpopt.mpopt.mpopt_adaptive">mpopt-adaptive module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-mpopt.mpopt.post_process">post-processing module</a></li>
+</ul>
+</li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="../README.html" title="previous chapter">MPOPT</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Devakumar THAMMISETTY, Colin Jones.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.1.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/mpopt/mpopt.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
