@@ -8,3 +8,7 @@ script:
   - pytest --cov=mpopt
 after_success:
   - coveralls
+sphinx:
+  builder: html
+  configuration: conf.py
+  fail_on_warning: true
