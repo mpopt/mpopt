@@ -7,17 +7,13 @@
 *MPOPT* is a collection of modules to solve multi-stage optimal control problems(OCPs) using pseudo-spectral collocation method. This module creates Nonlinear programming problem (NLP) from the given OCP description, which is then solved by CasADi nlpsolver using various available plugins such as *ipopt*, *snopt* etc.
 
 Main features of the solver are :
- 
+
 * Customizable collocation approximation, compatable with Legendre-Gauss-Radau, Legendre-Gauss-Lobatto, Chebyshev-Gauss-Lobatto roots.
 * Intuitive definition of OCP/multi-phase OCP
 * Single-phase as well as multi-phase OCP solving capability using user defined collocation approximation
 * Adaptive grid refinement schemes for robust solutions
 * NLP solution using algorithmic differation capability offered by [CasADi](https://web.casadi.org/), multiple NLP solver compatibility 'ipopt', 'snopt', 'sqpmethod' etc.
-* Sophisticated post processing module for interactive visualization of solution
-```python
-x, u, t = post.get_data(interpolate=True)
-fig, axs = post.plot_phases()
-```
+* Sophisticated post-processing module for interactive data visualization
 
 ### Installation
 
@@ -37,7 +33,7 @@ If you want to downloaded it from source, you may do so either by:
 ```
 $ make init
 $ make test
-$ python3 -m examples/moon_lander.py
+$ python examples/moon_lander.py
 ```
 
 ### Getting started
@@ -61,7 +57,7 @@ ocp.x00[0] = [10.0, -2.0]
 ocp.lbu[0], ocp.ubu[0] = 0, 3
 
 # Create optimizer(mpo), solve and post process(post) the solution
-mpo, post = mp.solve(ocp, n_segments=1, poly_orders=20, scheme="LGR", plot=True)
+mpo, post = mp.solve(ocp, n_segments=20, poly_orders=3, scheme="LGR", plot=True)
 ```
 
 ## Authors

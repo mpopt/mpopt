@@ -1,7 +1,7 @@
 #
 # Copyright (c) 2020 LA EPFL.
 #
-# This file is part of MPOPT 
+# This file is part of MPOPT
 # (see http://github.com/mpopt).
 #
 # This program is free software: you can redistribute it and/or modify
@@ -61,14 +61,15 @@ ocp.lbtf[0], ocp.ubtf[0] = 1, 1
 ocp.lbtf[1], ocp.ubtf[1] = 2.9, 2.9
 
 ocp.validate()
-mp.post_process._INTERPOLATION_NODES_PER_SEG = 200
+if __name__ == "__main__":
+    mp.post_process._INTERPOLATION_NODES_PER_SEG = 200
 
-mpo, lgr = mp.solve(ocp, 1, 15, "LGR", True)
-mpo, lgl = mp.solve(ocp, 1, 15, "LGL", True)
-mpo, cgl = mp.solve(ocp, 1, 15, "CGL", True)
-mp.plt.title(
-    f"non-adaptive solution segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
-)
+    mpo, lgr = mp.solve(ocp, 1, 15, "LGR", True)
+    mpo, lgl = mp.solve(ocp, 1, 15, "LGL", True)
+    mpo, cgl = mp.solve(ocp, 1, 15, "CGL", True)
+    mp.plt.title(
+        f"non-adaptive solution segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
+    )
 
-print(lgr.solution["f"], lgl.solution["f"], cgl.solution["f"])
-mp.plt.show()
+    print(lgr.solution["f"], lgl.solution["f"], cgl.solution["f"])
+    mp.plt.show()

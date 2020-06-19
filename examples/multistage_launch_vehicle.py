@@ -1,7 +1,7 @@
 #
 # Copyright (c) 2020 LA EPFL.
 #
-# This file is part of MPOPT 
+# This file is part of MPOPT
 # (see http://github.com/mpopt).
 #
 # This program is free software: you can redistribute it and/or modify
@@ -287,53 +287,54 @@ ocp.validate()
 
 # Solve with drag disables
 ocp.dynamics = get_dynamics(0)
-mpo = mp.mpopt(ocp, 1, 11)
-sol = mpo.solve()
 
-# Solve with drag enabled and initial guess
-ocp.dynamics = get_dynamics(1)
-ocp.validate()
+if __name__ == "__main__":
+    mpo = mp.mpopt(ocp, 1, 11)
+    sol = mpo.solve()
 
-mpo._ocp = ocp
-sol = mpo.solve(
-    sol, reinitialize_nlp=True, nlp_solver_options={"ipopt.acceptable_tol": 1e-6}
-)
-print("Final mass : ", round(-sol["f"].full()[0, 0] * m0, 4))
+    # Solve with drag enabled and initial guess
+    ocp.dynamics = get_dynamics(1)
+    ocp.validate()
 
-mp.post_process._INTERPOLATION_NODES_PER_SEG = 200
-# Post processing
-post = mpo.process_results(sol, plot=False, scaling=False)
+    mpo._ocp = ocp
+    sol = mpo.solve(
+        sol, reinitialize_nlp=True, nlp_solver_options={"ipopt.acceptable_tol": 1e-6}
+    )
+    print("Final mass : ", round(-sol["f"].full()[0, 0] * m0, 4))
 
-# ************** Plot height and velocity ************************
-x, u, t = post.get_data(interpolate=True)
-print("Final time : ", t[-1])
-figu, axsu = post.plot_u()
+    mp.post_process._INTERPOLATION_NODES_PER_SEG = 200
+    # Post processing
+    post = mpo.process_results(sol, plot=False, scaling=False)
 
-# Plot mass
-figm, axsm = post.plot_single_variable(
-    x * 1e-3, t, [[-1]], axis=0, fig=None, axs=None, tics=["-"] * 15
-)
+    # ************** Plot height and velocity ************************
+    x, u, t = post.get_data(interpolate=True)
+    print("Final time : ", t[-1])
+    figu, axsu = post.plot_u()
 
-# Compute and plot altitude, velocity
-r = 1e-3 * (np.sqrt(x[:, 0] ** 2 + x[:, 1] ** 2 + x[:, 2] ** 2) - Re)
-v = 1e-3 * np.sqrt(x[:, 3] ** 2 + x[:, 4] ** 2 + x[:, 5] ** 2)
-y = np.column_stack((r, v))
-fig, axs = post.plot_single_variable(y, t, [[0], [1]], axis=0)
+    # Plot mass
+    figm, axsm = post.plot_single_variable(
+        x * 1e-3, t, [[-1]], axis=0, fig=None, axs=None, tics=["-"] * 15
+    )
 
+    # Compute and plot altitude, velocity
+    r = 1e-3 * (np.sqrt(x[:, 0] ** 2 + x[:, 1] ** 2 + x[:, 2] ** 2) - Re)
+    v = 1e-3 * np.sqrt(x[:, 3] ** 2 + x[:, 4] ** 2 + x[:, 5] ** 2)
+    y = np.column_stack((r, v))
+    fig, axs = post.plot_single_variable(y, t, [[0], [1]], axis=0)
 
-x, u, t = post.get_data(interpolate=False)
-r = 1e-3 * (np.sqrt(x[:, 0] ** 2 + x[:, 1] ** 2 + x[:, 2] ** 2) - Re)
-v = 1e-3 * np.sqrt(x[:, 3] ** 2 + x[:, 4] ** 2 + x[:, 5] ** 2)
-y = np.column_stack((r, v))
-fig, axs = post.plot_single_variable(
-    y, t, [[0], [1]], axis=0, fig=fig, axs=axs, tics=["."] * 15
-)
-axs[0].set(ylabel="Altitude, km", xlabel="Time, s")
-axs[1].set(ylabel="Velocity, km/s", xlabel="Time, s")
+    x, u, t = post.get_data(interpolate=False)
+    r = 1e-3 * (np.sqrt(x[:, 0] ** 2 + x[:, 1] ** 2 + x[:, 2] ** 2) - Re)
+    v = 1e-3 * np.sqrt(x[:, 3] ** 2 + x[:, 4] ** 2 + x[:, 5] ** 2)
+    y = np.column_stack((r, v))
+    fig, axs = post.plot_single_variable(
+        y, t, [[0], [1]], axis=0, fig=fig, axs=axs, tics=["."] * 15
+    )
+    axs[0].set(ylabel="Altitude, km", xlabel="Time, s")
+    axs[1].set(ylabel="Velocity, km/s", xlabel="Time, s")
 
-# Plot mass at the collocation nodes
-figm, axsm = post.plot_single_variable(
-    x * 1e-3, t, [[-1]], axis=0, fig=figm, axs=axsm, tics=["."] * 15
-)
+    # Plot mass at the collocation nodes
+    figm, axsm = post.plot_single_variable(
+        x * 1e-3, t, [[-1]], axis=0, fig=figm, axs=axsm, tics=["."] * 15
+    )
 
-mp.plt.show()
+    mp.plt.show()

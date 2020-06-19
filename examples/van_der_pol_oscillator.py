@@ -1,7 +1,7 @@
 #
 # Copyright (c) 2020 LA EPFL.
 #
-# This file is part of MPOPT 
+# This file is part of MPOPT
 # (see http://github.com/mpopt).
 #
 # This program is free software: you can redistribute it and/or modify
@@ -19,6 +19,7 @@
 #
 """Van der Pol oscilator OCP from https://web.casadi.org/docs/
 """
+# from context import mpopt
 from mpopt import mp
 
 ocp = mp.OCP(n_states=2, n_controls=1)
@@ -43,23 +44,27 @@ ocp.lbtf[0] = 10.0
 ocp.ubtf[0] = 10.0
 
 ocp.validate()
-mp.post_process._INTERPOLATION_NODES_PER_SEG = 200
 
-seg, p = 1, 15
-mpo, lgr = mp.solve(ocp, seg, p, "LGR", plot=False)
-mpo, lgl = mp.solve(ocp, seg, p, "LGL", plot=False)
-mpo, cgl = mp.solve(ocp, seg, p, "CGL", plot=False)
+if __name__ == "__main__":
+    mp.post_process._INTERPOLATION_NODES_PER_SEG = 200
 
-fig, axs = lgr.plot_phases(name="LGR")
-fig, axs = lgl.plot_phases(fig=fig, axs=axs, name="LGL")
-fig, axs = cgl.plot_phases(fig=fig, axs=axs, name="CGL")
-mp.plt.title(
-    f"non-adaptive solution segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
-)
+    seg, p = 1, 15
+    mpo, lgr = mp.solve(ocp, seg, p, "LGR", plot=False)
+    mpo, lgl = mp.solve(ocp, seg, p, "LGL", plot=False)
+    mpo, cgl = mp.solve(ocp, seg, p, "CGL", plot=False)
 
-mph = mp.mpopt_h_adaptive(ocp, 5, 5)
-solh = mph.solve(max_iter=10, mpopt_options={"method": "control_slope"})
-posth = mph.process_results(solh, plot=False)
-fig, axs = posth.plot_phases(fig=None, axs=None)
-mp.plt.title(f"Adaptive solution segments = {mph.n_segments} poly={mph.poly_orders[0]}")
-mp.plt.show()
+    fig, axs = lgr.plot_phases(name="LGR")
+    fig, axs = lgl.plot_phases(fig=fig, axs=axs, name="LGL")
+    fig, axs = cgl.plot_phases(fig=fig, axs=axs, name="CGL")
+    mp.plt.title(
+        f"non-adaptive solution segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
+    )
+
+    mph = mp.mpopt_h_adaptive(ocp, 5, 5)
+    solh = mph.solve(max_iter=10, mpopt_options={"method": "control_slope"})
+    posth = mph.process_results(solh, plot=False)
+    fig, axs = posth.plot_phases(fig=None, axs=None)
+    mp.plt.title(
+        f"Adaptive solution segments = {mph.n_segments} poly={mph.poly_orders[0]}"
+    )
+    mp.plt.show()

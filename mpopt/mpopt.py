@@ -2,7 +2,7 @@
 #
 # Copyright (c) 2020 LA EPFL.
 #
-# This file is part of MPOPT 
+# This file is part of MPOPT
 # (see http://github.com/mpopt).
 #
 # This program is free software: you can redistribute it and/or modify
@@ -1891,8 +1891,26 @@ class mpopt_h_adaptive(mpopt):
         """
         ti, residuals = self.get_dynamics_residuals(solution)
         max_error = 0.0
-
-        # post = self.process_results(solution, plot=False)
+        if self.plot_residual_evolution:
+            tics = [".", "*", "+", "d", "^"] * 15
+            self.fig, self.axs = post_process.plot_residuals(
+                ti,
+                residuals,
+                phases=self._ocp.phases_to_plot,
+                name=f"Iter {self.iter_count}",
+                fig=self.fig,
+                axs=self.axs,
+                tics=[tics[self.iter_count]] * 15,
+            )
+            self.fig, self.axs = post_process.plot_residuals(
+                ti,
+                residuals,
+                phases=self._ocp.phases_to_plot,
+                # name=f"Iter {self.iter_count}",
+                fig=self.fig,
+                axs=self.axs,
+                tics=["-"] * 15,
+            )
 
         segment_widths = [None] * self._ocp.n_phases
         for phase in range(self._ocp.n_phases):
@@ -2241,7 +2259,7 @@ class mpopt_adaptive(mpopt):
             poly_orders=poly_orders,
             scheme=scheme,
         )
-        self.mid_residuals = False
+        self.mid_residuals = True
 
         # Segment width bounds : default values
         self.lbh = [self._SEG_WIDTH_MIN for _ in range(self._ocp.n_phases)]
