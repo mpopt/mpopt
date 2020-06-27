@@ -1,57 +1,76 @@
-mpopt package
-=============
+MPOPT package implementation
+===============================
 
-mpopt module
-------------------
+mpopt base class
+-------------------
 
-.. automodule:: mpopt.mpopt.mpopt
+.. autoclass:: mpopt.mpopt.mpopt
    :members:
    :show-inheritance:
 
-Collocation module
-----------------------
 
-.. automodule:: mpopt.mpopt.Collocation
+
+Collocation
+-------------------------------
+
+Collocation class
+^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: mpopt.mpopt.Collocation
   :members:
   :undoc-members:
   :show-inheritance:
 
-Collocation Roots module
-----------------------------
+Collocation Roots class
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. automodule:: mpopt.mpopt.CollocationRoots
+.. autoclass:: mpopt.mpopt.CollocationRoots
   :members:
   :undoc-members:
   :show-inheritance:
 
-OCP definition module
+OCP definition
+---------------------
+
+OCP definition class
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: mpopt.mpopt.OCP
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+
+Adaptive grid refinement scheme-I & II
+-------------------------------------------
+
+mpopt h-adaptive class
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: mpopt.mpopt.mpopt_h_adaptive
+ :members:
+ :undoc-members:
+ :show-inheritance:
+
+Adaptive grid refinement scheme-III
+------------------------------------
+
+mpopt-adaptive class
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: mpopt.mpopt.mpopt_adaptive
+ :members:
+ :undoc-members:
+ :show-inheritance:
+
+
+Processing results
 --------------------------
 
-.. automodule:: mpopt.mpopt.OCP
-  :members:
-  :undoc-members:
-  :show-inheritance:
+Post-processing class
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-mpopt-h-adaptive module
-------------------------------
-
-.. automodule:: mpopt.mpopt.mpopt_h_adaptive
-  :members:
-  :undoc-members:
-  :show-inheritance:
-
-mpopt-adaptive module
-------------------------------
-
-.. automodule:: mpopt.mpopt.mpopt_adaptive
-  :members:
-  :undoc-members:
-  :show-inheritance:
-
-post-processing module
-----------------------------
-
-.. automodule:: mpopt.mpopt.post_process
+.. autoclass:: mpopt.mpopt.post_process
   :members:
   :undoc-members:
   :show-inheritance:

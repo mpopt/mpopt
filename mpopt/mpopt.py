@@ -361,7 +361,7 @@ class mpopt:
         args:
            :phase: index of the corresponding phase
 
-         returns:
+        returns:
             Tuple : (DU, DUmin, DUmax)
                 DU - CasADi vector of constraints for the slope of control input
                     across segments
@@ -560,6 +560,7 @@ class mpopt:
                     ubx - Upper bound for the optimization variables (x)
                     lbu - Lower bound for the constraints vector (g)
                     ubu - Upper bound for the constraints vector (g)
+
         """
         # Clear NLP data
         self.J = 0
@@ -620,6 +621,7 @@ class mpopt:
 
         returns:
             solution : initialized solution for given phase
+
         """
         z0 = [None] * 4
         x00 = self._ocp.x00[phase] * self._ocp.scale_x
@@ -659,6 +661,7 @@ class mpopt:
 
         returns:
             solution : Initialized solution for the NLP
+
         """
         Z0 = [None] * self._ocp.n_phases
         for phase in range(self._ocp.n_phases):
@@ -761,6 +764,7 @@ class mpopt:
 
         returns:
             :dict: (x0, lam_x0, lam_g0)
+
         """
         key_target_pair = {
             "x": "x0",
@@ -794,11 +798,10 @@ class mpopt:
             :phase: index of the phase
 
         returns:
-            :trajectories: CasADi function which returns states, controls and time
-                        variable for the given phase when called with NLP solution
-                        vector of all phases
+            :trajectories: CasADi function which returns states, controls and time variable for the given phase when called with NLP solution vector of all phases
                 t0, tf - unscaled AND
                 x, u, t - scaled trajectories
+
         """
         x = self.X[phase]
         u = self.U[phase]
@@ -828,6 +831,7 @@ class mpopt:
 
         returns:
             :post: Object of post_process class (Initialized)
+
         """
         trajectories = [
             self.init_trajectories(phase) for phase in range(self._ocp.n_phases)
@@ -875,6 +879,7 @@ class post_process:
 
     Examples:
         >>> post = post_process(solution, trajectories, options)
+
     """
 
     __TICS = ["-"] * 20
@@ -2938,7 +2943,6 @@ class Collocation:
 
         args:
             :poly_orders: List of polynomial degrees used in collocation
-
         """
         for degree in self.poly_orders:
             self.roots[degree] = self._taus_fn(degree)
@@ -2968,11 +2972,10 @@ class Collocation:
         return D
 
     def get_quadrature_weights(self, degree):
-        """Get differentiation matrix corresponding to given basis polynomial degree
+        """Get quadrature weights corresponding to given basis polynomial degree
 
         args:
             :degree: order of the polynomial used in collocation
-
         """
         if (degree not in self.roots) or (degree not in self.polys):
             self.init_polynomials([degree])
@@ -2986,11 +2989,11 @@ class Collocation:
         return quad_weights
 
     def get_interpolation_matrix(self, taus, degree):
-        """Get differentiation matrix corresponding to given basis polynomial degree
+        """Get interpolation matrix corresponsing nodes (taus) where the segment is approximated with polynomials of degree (degree)
 
         args:
-            :degree: order of the polynomial used in collocation
-
+            :taus: Points where interpolation is performed
+            :degree: Order of the collocation polynomial
         """
         if (degree not in self.roots) or (degree not in self.polys):
             self.init_polynomials([degree])
@@ -3005,11 +3008,10 @@ class Collocation:
         return C
 
     def get_diff_matrices(self, poly_orders: List = None):
-        """Get differentiation matrix corresponding to given basis polynomial degree
+        """Get cdifferentiation matrices for given collocation approximation
 
         args:
-            :degree: order of the polynomial used in collocation
-
+            :poly_orders: order of the polynomials used in collocation with each element representing one segment
         """
         unique_polys = self.unique_polys if poly_orders is None else set(poly_orders)
         diff_mat_dict = {}
@@ -3029,11 +3031,10 @@ class Collocation:
                 element representing one segment
 
         returns:
-            Dict : (key, value)
+            :Dict : (key, value)
                 key - segment number (starting from 0)
                 value - Differentiation matrix(C) such that DX_tau = D*X_colloc where
                     X_colloc is the values of states at the collocation nodes
-
         """
         if poly_orders is None:
             poly_orders = self.poly_orders
@@ -3044,10 +3045,11 @@ class Collocation:
         return basis_Dmats
 
     def get_quad_weight_matrices(self, poly_orders: List = None):
-        """Get differentiation matrix corresponding to given basis polynomial degree
+        """Get quadrature weights for given collocation approximation
 
         args:
-            :degree: order of the polynomial used in collocation
+            :poly_orders: order of the polynomials used in collocation with each
+                element representing one segment
 
         """
         unique_polys = self.unique_polys if poly_orders is None else set(poly_orders)
@@ -3083,10 +3085,10 @@ class Collocation:
 
     @staticmethod
     def get_lagrange_polynomials(roots):
-        """Get differentiation matrix corresponding to given basis polynomial degree
+        """Get basis polynomials given the collocation nodes
 
         args:
-            :degree: order of the polynomial used in collocation
+            :roots: Collocation points
 
         """
         n = len(roots)
@@ -3101,10 +3103,11 @@ class Collocation:
         return polys
 
     def get_composite_differentiation_matrix(self, poly_orders: List = None):
-        """Get differentiation matrix corresponding to given basis polynomial degree
+        """Get composite differentiation matrix for given collocation approximation
 
         args:
-            :degree: order of the polynomial used in collocation
+            :poly_orders: order of the polynomials used in collocation with each
+                element representing one segment
 
         """
         D = self.get_diff_matrices(poly_orders)
@@ -3124,10 +3127,11 @@ class Collocation:
         return comp_diff_matrix
 
     def get_composite_quadrature_weights(self, poly_orders: List = None):
-        """Get differentiation matrix corresponding to given basis polynomial degree
+        """Get composite quadrature weights for given collocation approximation
 
         args:
-            :degree: order of the polynomial used in collocation
+            :poly_orders: order of the polynomials used in collocation with each
+                element representing one segment
 
         """
         if poly_orders is None:
@@ -3145,8 +3149,7 @@ class Collocation:
         args:
             :taus: List of scaled taus (between 0 and 1) with length of list equal
                 to length of poly_orders (= number of segments).
-                Note: taus are not assumed to have overlap between segments
-                    (end element != start of next phase)
+                Note- taus are not assumed to have overlap between segments(end element != start of next phase)
             :poly_orders: order of the polynomials used in collocation with each
                 element representing one segment
 
@@ -3183,6 +3186,7 @@ class Collocation:
 
         returns:
             :D: Composite differentiation matrix
+            
         """
         D = self.get_interpolation_Dmatrices_at(taus, poly_orders)
         if poly_orders is None:
