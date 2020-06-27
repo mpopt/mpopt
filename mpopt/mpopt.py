@@ -3369,20 +3369,3 @@ def solve(
     post = mpo.process_results(solution, plot=plot)
 
     return (mpo, post)
-
-
-if __name__ == "__main__":
-    print("mpopt")
-
-    def test_ocp():
-        ocp = OCP(1, 0)
-
-        ocp.dynamics[0] = lambda x, u, t: [1]
-        # ocp.path_constraints[0] = lambda x, u, t, s: [x[0]-1, x[0]*x[0]]
-        ocp.running_costs[0] = lambda x, u, t: x[0]
-        # ocp.terminal_constraints[0] = lambda xf, tf, x0, t0, s: [xf[0]]
-        # ocp.terminal_costs[0] = lambda xf, tf, x0, t0, s: tf
-
-        ocp.validate()
-
-        return ocp

@@ -235,6 +235,9 @@ def test_mpo(test_ocp):
 
 @pytest.fixture
 def moon_lander_mpo(moon_lander_ocp):
+    mpo, post = mp.solve(
+        moon_lander_ocp, n_segments=20, poly_orders=3, scheme="LGR", plot=False
+    )
     mpo = mp.mpopt(moon_lander_ocp, 20, 3)
     mpo.validate()
 
@@ -287,7 +290,7 @@ def hyper_sensitive_mpo(hyper_sensitive_ocp):
 
 @pytest.fixture
 def two_phase_schwartz_mpo(two_phase_schwartz_ocp):
-    mpo = mp.mpopt(two_phase_schwartz_ocp, 1, 15)
+    mpo = mp.mpopt(two_phase_schwartz_ocp, 1, 15, "LGL")
     mpo.validate()
 
     return mpo
@@ -406,6 +409,9 @@ def test_mpopt_solve(test_mpo):
 
 
 def test_moon_lander_mpopt_solve(moon_lander_mpo):
+    moon_lander_mpo._ocp.diff_u[0] = 1
+    moon_lander_mpo._ocp.midu[0] = 0
+    moon_lander_mpo._ocp.du_continuity[0] = 1
     sol = moon_lander_mpo.solve()
     for key in ["x", "f"]:
         assert key in sol
@@ -418,9 +424,7 @@ def test_moon_lander_mpopt_solve(moon_lander_mpo):
 
 
 def test_moon_lander_h_adaptive_solve(moon_lander_mpo_h_adaptive):
-    sol = moon_lander_mpo_h_adaptive.solve(
-        max_iter=3, mpopt_options={"method": "residual", "sub_method": "merge_split"}
-    )
+    sol = moon_lander_mpo_h_adaptive.solve(max_iter=3)
     for key in ["x", "f"]:
         assert key in sol
     post = moon_lander_mpo_h_adaptive.process_results(sol, plot=False)
@@ -432,6 +436,7 @@ def test_moon_lander_h_adaptive_solve(moon_lander_mpo_h_adaptive):
 
 
 def test_moon_lander_h_adaptive2_solve(moon_lander_mpo_h_adaptive):
+    moon_lander_mpo_h_adaptive.grid_type[0] = "mid_points"
     sol = moon_lander_mpo_h_adaptive.solve(
         max_iter=2, mpopt_options={"method": "residual", "sub_method": "equal_area"}
     )
@@ -446,6 +451,7 @@ def test_moon_lander_h_adaptive2_solve(moon_lander_mpo_h_adaptive):
 
 
 def test_moon_lander_h_adaptive3_solve(moon_lander_mpo_h_adaptive):
+    moon_lander_mpo_h_adaptive.grid_type[0] = "spectral"
     sol = moon_lander_mpo_h_adaptive.solve(
         max_iter=10, mpopt_options={"method": "control_slope", "sub_method": ""}
     )
@@ -460,6 +466,7 @@ def test_moon_lander_h_adaptive3_solve(moon_lander_mpo_h_adaptive):
 
 
 def test_moon_lander_mpopt_adaptive_solve(moon_lander_mpo_adaptive):
+    moon_lander_mpo_adaptive.mid_residuals = False
     sol = moon_lander_mpo_adaptive.solve()
     for key in ["x", "f"]:
         assert key in sol
@@ -498,6 +505,7 @@ def test_hyper_sensitive_h_adaptive_solve(hyper_sensitive_mpo_h_adaptive):
 
 
 def test_hyper_sensitive_h_adaptive2_solve(hyper_sensitive_mpo_h_adaptive):
+    hyper_sensitive_mpo_h_adaptive.plot_residual_evolution = True
     sol = hyper_sensitive_mpo_h_adaptive.solve(
         max_iter=2, mpopt_options={"method": "residual", "sub_method": "equal_area"}
     )
@@ -512,6 +520,7 @@ def test_hyper_sensitive_h_adaptive2_solve(hyper_sensitive_mpo_h_adaptive):
 
 
 def test_hyper_sensitive_h_adaptive3_solve(hyper_sensitive_mpo_h_adaptive):
+    hyper_sensitive_mpo_h_adaptive.plot_residual_evolution = True
     sol = hyper_sensitive_mpo_h_adaptive.solve(
         max_iter=10, mpopt_options={"method": "control_slope", "sub_method": ""}
     )
