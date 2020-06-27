@@ -13,7 +13,7 @@
 import os
 import sys
 
-sys.path.insert(0, os.path.abspath("../.."))
+sys.path.insert(0, os.path.abspath("../../.."))
 sys.setrecursionlimit(1500)
 
 
@@ -24,7 +24,7 @@ copyright = "2020, Devakumar THAMMISETTY, Colin Jones"
 author = "Devakumar THAMMISETTY, Colin Jones"
 
 # The full version, including alpha/beta/rc tags
-release = "0.0.2"
+release = "0.1.2"
 
 
 # -- General configuration ---------------------------------------------------
