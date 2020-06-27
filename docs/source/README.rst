@@ -1,4 +1,4 @@
-|pypi pacakge| |Build Status| |Coverage Status|
+|pypi pacakge| |Build Status| |Coverage Status| |Documentation Status|
 
 MPOPT
 ~~~~~
@@ -61,7 +61,7 @@ simple moon-lander OCP example in Jupyter notebook.
 Documentation
 ~~~~~~~~~~~~~
 
-Work under progress.
+-  Refer `Documentation <https://mpopt.readthedocs.io/en/latest/>`__
 
 A sample code to solve moon-lander OCP (2D)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -106,3 +106,5 @@ Acknowledgements
    :target: https://travis-ci.org/mpopt/mpopt.svg?branch=master
 .. |Coverage Status| image:: https://coveralls.io/repos/github/mpopt/mpopt/badge.svg
    :target: https://coveralls.io/github/mpopt/mpopt
+.. |Documentation Status| image:: https://readthedocs.org/projects/mpopt/badge/?version=latest
+   :target: https://mpopt.readthedocs.io/en/latest/?badge=latest
