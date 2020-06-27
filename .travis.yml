@@ -6,8 +6,6 @@ install:
   - pip install -e .
 script:
   - pytest --cov=mpopt
-after_success:
-  - coveralls
 sphinx:
   builder: html
   configuration: conf.py
