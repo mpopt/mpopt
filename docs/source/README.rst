@@ -36,11 +36,13 @@ simple moon-lander OCP example in Jupyter notebook.
 Installation
 ~~~~~~~~~~~~
 
-Install the package using
+Install and try the package using
 
 ::
 
     $ pip install mpopt
+    $ wget https://raw.githubusercontent.com/mpopt/mpopt/master/examples/moon_lander.py
+    $ python3 moon_lander.py
 
 If you want to downloaded it from source, you may do so either by:
 
