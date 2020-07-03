@@ -30,3 +30,7 @@ test: venv
 clean:
 		rm -rf venv
 		find -iname "*.pyc" -delete
+
+
+run: examples/moon_lander.py
+	. venv/bin/activate; python examples/moon_lander.py
