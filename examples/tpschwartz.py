@@ -1,7 +1,7 @@
 #
 # Copyright (c) 2020 LA EPFL.
 #
-# This file is part of MPOPT 
+# This file is part of MPOPT
 # (see http://github.com/mpopt).
 #
 # This program is free software: you can redistribute it and/or modify
@@ -21,7 +21,11 @@
 Created: 12th Mar 2020
 Author : Devakumar Thammisetty
 """
-from mpopt import mp
+try:
+    from mpopt import mp
+except ModuleNotFoundError:
+    from context import mpopt
+    from mpopt import mp
 
 ocp = mp.OCP(n_states=2, n_controls=1, n_phases=2)
 
@@ -65,10 +69,16 @@ if __name__ == "__main__":
     mp.post_process._INTERPOLATION_NODES_PER_SEG = 200
 
     mpo, lgr = mp.solve(ocp, 1, 15, "LGR", True)
+    mp.plt.title(
+        f"non-adaptive solution using LGR scheme & segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
+    )
     mpo, lgl = mp.solve(ocp, 1, 15, "LGL", True)
+    mp.plt.title(
+        f"non-adaptive solution using LGL scheme & segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
+    )
     mpo, cgl = mp.solve(ocp, 1, 15, "CGL", True)
     mp.plt.title(
-        f"non-adaptive solution segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
+        f"non-adaptive solution using CGL scheme & segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
     )
 
     print(lgr.solution["f"], lgl.solution["f"], cgl.solution["f"])

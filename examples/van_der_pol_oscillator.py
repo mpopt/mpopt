@@ -19,8 +19,11 @@
 #
 """Van der Pol oscilator OCP from https://web.casadi.org/docs/
 """
-# from context import mpopt
-from mpopt import mp
+try:
+    from mpopt import mp
+except ModuleNotFoundError:
+    from context import mpopt
+    from mpopt import mp
 
 ocp = mp.OCP(n_states=2, n_controls=1)
 

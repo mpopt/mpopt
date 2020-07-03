@@ -1,120 +1,110 @@
 |pypi pacakge| |Build Status| |Coverage Status| |Documentation Status|
 
-[![Build Status](https://travis-ci.org/mpopt/mpopt.svg?branch=master)](https://travis-ci.org/mpopt/mpopt.svg?branch=master)
+MPOPT
+~~~~~
 
-[![Coverage Status](https://coveralls.io/repos/github/mpopt/mpopt/badge.svg)](https://coveralls.io/github/mpopt/mpopt)
-
-[![Documentation Status](https://readthedocs.org/projects/mpopt/badge/?version=latest)](https://mpopt.readthedocs.io/en/latest/?badge=latest)
-
-## MPOPT
-========
-
-*MPOPT* is a collection of modules to solve multi-stage optimal control problems(OCPs) using pseudo-spectral collocation method. This module creates Nonlinear programming problem (NLP) from the given OCP description, which is then solved by CasADi nlpsolver using various available plugins such as *ipopt*, *snopt* etc.
+*MPOPT* is a collection of modules to solve multi-stage optimal control
+problems(OCPs) using pseudo-spectral collocation method. This module
+creates Nonlinear programming problem (NLP) from the given OCP
+description, which is then solved by CasADi nlpsolver using various
+available plugins such as *ipopt*, *snopt* etc.
 
 Main features of the solver are :
 
-* Customizable collocation approximation, compatable with Legendre-Gauss-Radau, Legendre-Gauss-Lobatto, Chebyshev-Gauss-Lobatto roots.
+-  Customizable collocation approximation, compatable with
+   Legendre-Gauss-Radau, Legendre-Gauss-Lobatto, Chebyshev-Gauss-Lobatto
+   roots.
+-  Intuitive definition of OCP/multi-phase OCP
+-  Single-phase as well as multi-phase OCP solving capability using user
+   defined collocation approximation
+-  Adaptive grid refinement schemes for robust solutions
+-  NLP solution using algorithmic differentiation capability offered by
+   `CasADi <https://web.casadi.org/>`__, multiple NLP solver
+   compatibility 'ipopt', 'snopt', 'sqpmethod' etc.
+-  Sophisticated post-processing module for interactive data
+   visualization
 
-* Intuitive definition of OCP/multi-phase OCP
+Getting started
+~~~~~~~~~~~~~~~
 
-* Single-phase as well as multi-phase OCP solving capability using user defined collocation approximation
+A brief overview of the package and capabilities are demonstrated with
+simple moon-lander OCP example in Jupyter notebook.
 
-* Adaptive grid refinement schemes for robust solutions
+-  Get started with
+   `MPOPT <https://github.com/mpopt/mpopt/blob/master/getting_started.ipynb>`__
 
-* NLP solution using algorithmic differentiation capability offered by `CasADi <https://web.casadi.org/>`_, multiple NLP solver compatibility 'ipopt', 'snopt', 'sqpmethod' etc.
-
-* Sophisticated post-processing module for interactive data visualization
-
-## Installation
-===============
+Installation
+~~~~~~~~~~~~
 
 Install the package using
 
-```
+::
 
-$ pip install mpopt
-
-```
+    $ pip install mpopt
 
 If you want to downloaded it from source, you may do so either by:
 
-- Downloading it from `GitHub <https://github.com/mpopt/mpopt>`_ page
+-  Downloading it from `GitHub <https://github.com/mpopt/mpopt>`__ page
 
-	\- Unzip the folder and you are ready to go
-- Or cloning it to a desired directory using git:
+   -  Unzip the folder and you are ready to go
 
-	\- ```$ git clone https://github.com/mpopt/mpopt.git```
+-  Or cloning it to a desired directory using git:
 
-```
+   -  ``$ git clone https://github.com/mpopt/mpopt.git --branch master``
 
-$ make init
+-  Install package using
 
-$ make test
+   -  ``$ make install``
 
-$ python examples/moon_lander.py
+-  Test installation using
 
-```
+   -  ``$ make test``
 
-## Getting started
-==================
+-  Try moon-lander example using
 
-A brief overview of the package and capabilities are demonstrated with simple moon-lander OCP example in Jupyter notebook.
+   -  ``$ make run``
 
-- Get started with `MPOPT <https://github.com/mpopt/mpopt/blob/master/getting_started.ipynb>`_
+Documentation
+~~~~~~~~~~~~~
 
-## Documentation
-================
+-  Refer `Documentation <https://mpopt.readthedocs.io/en/latest/>`__
 
-- Refer `Documentation <https://mpopt.readthedocs.io/en/latest/>`_
+A sample code to solve moon-lander OCP (2D)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-## A sample code to solve moon-lander OCP (2D)
-==============================================
+.. code:: python
 
-```python
-Moon lander OCP direct collocation/multi-segment collocation
-============================================================
+    # Moon lander OCP direct collocation/multi-segment collocation
+    from mpopt import mp
 
-from mpopt import mp
+    # Define OCP
+    ocp = mp.OCP(n_states=2, n_controls=1)
+    ocp.dynamics[0] = lambda x, u, t: [x[1], u[0] - 1.5]
+    ocp.running_costs[0] = lambda x, u, t: u[0]
+    ocp.terminal_constraints[0] = lambda xf, tf, x0, t0: [xf[0], xf[1]]
+    ocp.x00[0] = [10.0, -2.0]
+    ocp.lbu[0], ocp.ubu[0] = 0, 3
 
-Define OCP
-==========
+    # Create optimizer(mpo), solve and post process(post) the solution
+    mpo, post = mp.solve(ocp, n_segments=20, poly_orders=3, scheme="LGR", plot=True)
 
-ocp = mp.OCP(n*states=2, n*controls=1)
+Authors
+~~~~~~~
 
-ocp.dynamics[0] = lambda x, u, t: [x[1], u[0] - 1.5]
+-  **Devakumar THAMMISETTY**
+-  **Prof. Colin Jones** (Co-author)
 
-ocp.running_costs[0] = lambda x, u, t: u[0]
+License
+~~~~~~~
 
-ocp.terminal_constraints[0] = lambda xf, tf, x0, t0: [xf[0], xf[1]]
+This project is licensed under the GNU LGPL v3 - see the
+`LICENSE <https://github.com/mpopt/mpopt/blob/master/LICENSE>`__ file
+for details
 
-ocp.x00[0] = [10.0, -2.0]
+Acknowledgements
+~~~~~~~~~~~~~~~~
 
-ocp.lbu[0], ocp.ubu[0] = 0, 3
-
-Create optimizer(mpo), solve and post process(post) the solution
-================================================================
-
-mpo, post = mp.solve(ocp, n*segments=20, poly*orders=3, scheme="LGR", plot=True)
-
-```
-
-## Authors
-==========
-
-* **Devakumar THAMMISETTY**
-
-* **Prof. Colin Jones** (Co-author)
-
-
-## License
-==========
-
-This project is licensed under the GNU LGPL v3 - see the `LICENSE <https://github.com/mpopt/mpopt/blob/master/LICENSE>`_ file for details
-
-## Acknowledgements
-===================
-
-* **Petr Listov**
+-  **Petr Listov**
 
 .. |pypi pacakge| image:: https://img.shields.io/pypi/v/mpopt.svg
    :target: https://pypi.org/project/mpopt

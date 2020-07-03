@@ -2,7 +2,7 @@
 #
 # Copyright (c) 2020 LA EPFL.
 #
-# This file is part of MPOPT 
+# This file is part of MPOPT
 # (see http://github.com/mpopt).
 #
 # This program is free software: you can redistribute it and/or modify
@@ -883,7 +883,7 @@ class post_process:
     """
 
     __TICS = ["-"] * 20
-    _INTERPOLATION_NODES_PER_SEG = 10
+    _INTERPOLATION_NODES_PER_SEG = 50
 
     def __init__(
         self, solution: Dict = {}, trajectories: List = None, options: Dict = {}
@@ -3186,7 +3186,7 @@ class Collocation:
 
         returns:
             :D: Composite differentiation matrix
-            
+
         """
         D = self.get_interpolation_Dmatrices_at(taus, poly_orders)
         if poly_orders is None:

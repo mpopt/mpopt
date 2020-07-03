@@ -1,7 +1,7 @@
 #
 # Copyright (c) 2020 LA EPFL.
 #
-# This file is part of MPOPT 
+# This file is part of MPOPT
 # (see http://github.com/mpopt).
 #
 # This program is free software: you can redistribute it and/or modify
@@ -23,9 +23,15 @@ Author : Devakumar Thammisetty
 Description : OCP definition for use in NLP transcription
 gpops2.com/resources/gpops2UsersGuide.pdf
 """
-from mpopt import mp
 import numpy as np
 import casadi as ca
+
+try:
+    from mpopt import mp
+except ModuleNotFoundError:
+    from context import mpopt
+    from mpopt import mp
+
 
 ocp = mp.OCP(n_states=7, n_controls=3, n_phases=4)
 
@@ -313,7 +319,15 @@ if __name__ == "__main__":
 
     # Plot mass
     figm, axsm = post.plot_single_variable(
-        x * 1e-3, t, [[-1]], axis=0, fig=None, axs=None, tics=["-"] * 15
+        x * 1e-3,
+        t,
+        [[-1]],
+        axis=0,
+        fig=None,
+        axs=None,
+        tics=["-"] * 15,
+        name="mass",
+        ylabel="Mass in tons",
     )
 
     # Compute and plot altitude, velocity

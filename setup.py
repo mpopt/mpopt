@@ -1,7 +1,7 @@
 #
 # Copyright (c) 2020 LA EPFL.
 #
-# This file is part of MPOPT 
+# This file is part of MPOPT
 # (see http://github.com/mpopt).
 #
 # This program is free software: you can redistribute it and/or modify
@@ -27,15 +27,13 @@ requirements = [
     "numpy>=1.18",
     "typing>=3.7",
     "casadi>=3.5",
-    "pytest>=5.4",
     "matplotlib>=3.2",
     "scipy>=1.4",
-    "jupyterlab>=2.1",
 ]
 
 setup(
     name="mpopt",
-    version="0.1.2",
+    version="0.1.3",
     author="Devakumar THAMMISETTY, Colin Jones",
     author_email="deva.aerospace@gmail.com",
     description="A Multi-phase nonlinear Optimal control problem solver using Pseudo-spectral collocation",
@@ -58,5 +56,5 @@ setup(
         "Source": "https://github.com/mpopt/mpopt/",
         "Tracker": "https://github.com/mpopt/mpopt/issues",
     },
-    python_requires=">=3",
+    python_requires=">=3.6",
 )

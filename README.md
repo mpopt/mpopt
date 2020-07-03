@@ -16,6 +16,12 @@ Main features of the solver are :
 * NLP solution using algorithmic differentiation capability offered by [CasADi](https://web.casadi.org/), multiple NLP solver compatibility 'ipopt', 'snopt', 'sqpmethod' etc.
 * Sophisticated post-processing module for interactive data visualization
 
+### Getting started
+
+A brief overview of the package and capabilities are demonstrated with simple moon-lander OCP example in Jupyter notebook.
+
+- Get started with [MPOPT](https://github.com/mpopt/mpopt/blob/master/getting_started.ipynb)
+
 ### Installation
 
 Install the package using
@@ -29,19 +35,14 @@ If you want to downloaded it from source, you may do so either by:
 - Downloading it from [GitHub](https://github.com/mpopt/mpopt) page
     - Unzip the folder and you are ready to go
 - Or cloning it to a desired directory using git:
-    - ```$ git clone https://github.com/mpopt/mpopt.git```
+    - ```$ git clone https://github.com/mpopt/mpopt.git --branch master```
 
-```
-$ make init
-$ make test
-$ python examples/moon_lander.py
-```
-
-### Getting started
-
-A brief overview of the package and capabilities are demonstrated with simple moon-lander OCP example in Jupyter notebook.
-
-- Get started with [MPOPT](https://github.com/mpopt/mpopt/blob/master/getting_started.ipynb)
+- Install package using
+    - ```$ make install```
+- Test installation using
+    - ```$ make test```
+- Try moon-lander example using
+    - ```$ make run```
 
 ### Documentation
 

@@ -1,7 +1,7 @@
 #
 # Copyright (c) 2020 LA EPFL.
 #
-# This file is part of MPOPT 
+# This file is part of MPOPT
 # (see http://github.com/mpopt).
 #
 # This program is free software: you can redistribute it and/or modify
@@ -22,7 +22,11 @@ Created: 13th May 2020
 Author : Devakumar Thammisetty
 Description : Hyper-sensitive OCP
 """
-from mpopt import mp
+try:
+    from mpopt import mp
+except ModuleNotFoundError:
+    from context import mpopt
+    from mpopt import mp
 
 ocp = mp.OCP(n_states=1, n_controls=1, n_phases=1)
 
