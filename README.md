@@ -24,10 +24,12 @@ A brief overview of the package and capabilities are demonstrated with simple mo
 
 ### Installation
 
-Install the package using
+Install and try the package using
 
 ```
 $ pip install mpopt
+$ wget https://raw.githubusercontent.com/mpopt/mpopt/master/examples/moon_lander.py
+$ python3 moon_lander.py
 ```
 
 If you want to downloaded it from source, you may do so either by:
@@ -37,6 +39,8 @@ If you want to downloaded it from source, you may do so either by:
 - Or cloning it to a desired directory using git:
     - ```$ git clone https://github.com/mpopt/mpopt.git --branch master```
 
+- Move to the cloned directory
+    - ```$ cd mpopt```
 - Install package using
     - ```$ make install```
 - Test installation using
