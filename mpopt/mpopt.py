@@ -75,7 +75,7 @@ class mpopt:
         self._ocp = copy.deepcopy(problem)
 
         # Set the status of internal function evaluations
-        self.colloc_scheme = scheme  # available LGR, LG, CGL
+        self.colloc_scheme = scheme  # available LGR, LGL, CGL
         self._collocation_approximation_computed = False
         self._variables_created = False
         self._nlpsolver_initialized = False
@@ -101,6 +101,7 @@ class mpopt:
         """
         self.X = ca.SX.sym("x", self._Npoints, self._ocp.nx, self._ocp.n_phases)
         self.U = ca.SX.sym("u", self._Npoints, self._ocp.nu, self._ocp.n_phases)
+        self.A = ca.SX.sym("a", self._ocp.na, self._ocp.n_phases)
         self.t0 = ca.SX.sym("t0", self._ocp.n_phases)
         self.tf = ca.SX.sym("tf", self._ocp.n_phases)
 
@@ -110,9 +111,16 @@ class mpopt:
 
         self.__scU = ca.diag(ca.vertcat(self._ocp.scale_u))
         self.__invScU = ca.solve(self.__scU, np.eye(self._ocp.nu))
+
+        self._scA = ca.diag(ca.vertcat(self._ocp.scale_a))
+        self.__invScA = ca.solve(self._scA, np.eye(self._ocp.na))
+
         self._optimization_vars_per_phase = (
-            self._Npoints * (self._ocp.nx + self._ocp.nu) + 2
+            self._Npoints * (self._ocp.nx + self._ocp.nu)
+            + self._ocp.n_phases * self._ocp.na
+            + 2
         )
+
         self.time_grid = [
             [None for i in range(self._Npoints)] for _ in range(self._ocp.n_phases)
         ]
@@ -154,6 +162,7 @@ class mpopt:
         # Get unscaled starting and final times for given phase
         t0 = self.t0[phase] / self._ocp.scale_t
         tf = self.tf[phase] / self._ocp.scale_t
+        a = ca.mtimes(self.__invScA, self.A[:, phase])
 
         # Get unscaled terminal states and controls to evaluate terminal cost and constraints
         t_seg0 = t0
@@ -177,14 +186,14 @@ class mpopt:
             f[index] = (
                 h_seg
                 * ca.mtimes(
-                    self._scX, ca.vertcat(*self._ocp.dynamics[phase](x, u, t))
+                    self._scX, ca.vertcat(*self._ocp.dynamics[phase](x, u, t, a))
                 ).T
             )
             # discretize path_constraints
             if has_constraints:
-                c[index] = ca.vertcat(*self._ocp.path_constraints[phase](x, u, t)).T
+                c[index] = ca.vertcat(*self._ocp.path_constraints[phase](x, u, t, a)).T
             # running cost
-            q[index] = h_seg * ca.vertcat(self._ocp.running_costs[phase](x, u, t)).T
+            q[index] = h_seg * ca.vertcat(self._ocp.running_costs[phase](x, u, t, a)).T
 
             point += 1
             self.time_grid[phase][index] = t
@@ -257,14 +266,16 @@ class mpopt:
         """
         x0 = ca.mtimes(self.__invScX, self.X[phase][0, :].T)
         xf = ca.mtimes(self.__invScX, self.X[phase][-1, :].T)
+        a = ca.mtimes(self.__invScA, self.A[:, phase])
         t0 = self.t0[phase] / self._ocp.scale_t
         tf = self.tf[phase] / self._ocp.scale_t
+
         # Check if OCP has terminal constraints
         has_terminal_constraints = self._ocp.has_terminal_constraints(phase)
         # Estimate constraint vector and bounds for the collocated terminal constraints
         if has_terminal_constraints:
             # Get unscaled starting and final times for given phase
-            TC = ca.vertcat(*self._ocp.terminal_constraints[phase](xf, tf, x0, t0))
+            TC = ca.vertcat(*self._ocp.terminal_constraints[phase](xf, tf, x0, t0, a))
             ntc = TC.size1()
             TCmin = [self._ocp.LB_TERMINAL_CONSTRAINTS] * (ntc)
             TCmax = [self._ocp.UB_TERMINAL_CONSTRAINTS] * (ntc)
@@ -272,7 +283,7 @@ class mpopt:
             TC, TCmin, TCmax = [], [], []
 
         # Mayer term
-        J = ca.vertcat(self._ocp.terminal_costs[phase](xf, tf, x0, t0))
+        J = ca.vertcat(self._ocp.terminal_costs[phase](xf, tf, x0, t0, a))
 
         return (TC, TCmin, TCmax, J)
 
@@ -512,7 +523,11 @@ class mpopt:
         if not self._variables_created:
             self.create_variables()
         Z = ca.vertcat(
-            self.X[phase][:], self.U[phase][:], self.t0[phase], self.tf[phase]
+            self.X[phase][:],
+            self.U[phase][:],
+            self.t0[phase],
+            self.tf[phase],
+            self.A[:, phase],
         )
 
         # Lower and upper bounds for the states in OCP
@@ -529,6 +544,7 @@ class mpopt:
                 np.repeat(self._ocp.lbu[phase] * self._ocp.scale_u, self._Npoints),
                 self._ocp.lbt0[phase] * self._ocp.scale_t,
                 self._ocp.lbtf[phase] * self._ocp.scale_t,
+                self._ocp.lba[phase] * self._ocp.scale_a,
             ]
         )
         Zmax = np.concatenate(
@@ -537,6 +553,7 @@ class mpopt:
                 np.repeat(self._ocp.ubu[phase] * self._ocp.scale_u, self._Npoints),
                 self._ocp.ubt0[phase] * self._ocp.scale_t,
                 self._ocp.ubtf[phase] * self._ocp.scale_t,
+                self._ocp.uba[phase] * self._ocp.scale_a,
             ]
         )
 
@@ -623,13 +640,14 @@ class mpopt:
             solution : initialized solution for given phase
 
         """
-        z0 = [None] * 4
+        z0 = [None] * 5
         x00 = self._ocp.x00[phase] * self._ocp.scale_x
         xf0 = self._ocp.xf0[phase] * self._ocp.scale_x
         u00 = self._ocp.u00[phase] * self._ocp.scale_u
         uf0 = self._ocp.uf0[phase] * self._ocp.scale_u
         t00 = self._ocp.t00[phase] * self._ocp.scale_t
         tf0 = self._ocp.tf0[phase] * self._ocp.scale_t
+        a0 = self._ocp.a0[phase] * self._ocp.scale_a
 
         # Linear interpolation of states
         z0[0] = np.concatenate(
@@ -649,7 +667,7 @@ class mpopt:
                 ]
             )
         )
-        z0[2], z0[3] = t00, tf0
+        z0[2], z0[3], z0[4] = t00, tf0, a0
 
         return np.concatenate(z0)
 
@@ -805,14 +823,15 @@ class mpopt:
         """
         x = self.X[phase]
         u = self.U[phase]
+        a = self.A[:, phase]
         t0, tf = self.t0[phase] / self._ocp.scale_t, self.tf[phase] / self._ocp.scale_t
         t = ca.vertcat(*self.time_grid[phase])
         trajectories = ca.Function(
             "x_traj",
             [self.Z, self.seg_widths[:]],
-            [x, u, t, t0, tf],
+            [x, u, t, t0, tf, a],
             ["z", "h"],
-            ["x", "u", "t", "t0", "tf"],
+            ["x", "u", "t", "t0", "tf", "a"],
         )
 
         return trajectories
@@ -840,6 +859,7 @@ class mpopt:
         options = {
             "nx": self._ocp.nx,
             "nu": self._ocp.nu,
+            "na": self._ocp.na,
             "nPh": self._ocp.n_phases,
             "ns": self.n_segments,
             "poly_orders": self.poly_orders,
@@ -847,6 +867,7 @@ class mpopt:
             "phases_to_plot": self._ocp.phases_to_plot,
             "scale_x": self._ocp.scale_x,
             "scale_u": self._ocp.scale_u,
+            "scale_a": self._ocp.scale_a,
             "scale_t": self._ocp.scale_t,
             "scaling": scaling,
             "colloc_scheme": self.colloc_scheme,
@@ -912,6 +933,7 @@ class post_process:
             self.phases = [0]
         self.nx = self.options["nx"] if "nx" in self.options else 1
         self.nu = self.options["nu"] if "nu" in self.options else 1
+        self.na = self.options["na"] if "na" in self.options else 0
         self.scaling = self.options["scaling"] if "scaling" in self.options else False
         # Starting point of the grid
         self.tau0 = (
@@ -919,6 +941,7 @@ class post_process:
             if "tau0" in self.options
             else CollocationRoots._TAU_MIN
         )
+
         # End point of the grid
         self.tau1 = (
             self.options["tau1"]
@@ -933,27 +956,28 @@ class post_process:
             :phase: index of the phase
 
         returns:
-            Tuple : (x, u, t)
+            Tuple : (x, u, t, a)
                 x - states
                 u - controls
                 t - corresponding time vector
         """
         if "seg_widths" in self.options:
-            x, u, t, t0, tf = self.trajectories[phase](
+            x, u, t, t0, tf, a = self.trajectories[phase](
                 self.solution["x"], self.options["seg_widths"]
             )
         else:
-            x, u, t, t0, tf = self.trajectories[phase](self.solution["x"])
-        x_opt, u_opt, t_opt = (x.full(), u.full(), t.full())
+            x, u, t, t0, tf, a = self.trajectories[phase](self.solution["x"])
+        x_opt, u_opt, t_opt, a_opt = (x.full(), u.full(), t.full(), a.full())
 
         scale_t = self.options["scale_t"] if "scale_t" in self.options else 1.0
         if not self.scaling:
             scale_x = self.options["scale_x"] if "scale_x" in self.options else 1.0
             scale_u = self.options["scale_u"] if "scale_u" in self.options else 1.0
+            scale_a = self.options["scale_a"] if "scale_a" in self.options else 1.0
 
-            return (x_opt / scale_x, u_opt / scale_u, t_opt)
+            return (x_opt / scale_x, u_opt / scale_u, t_opt, a_opt / scale_a)
 
-        return (x_opt, u_opt, t_opt)
+        return (x_opt, u_opt, t_opt, a_opt)
 
     def get_original_data(self, phases: List = []):
         """Get optimized result for multiple phases
@@ -962,22 +986,23 @@ class post_process:
             :phases: Optional, List of phases to retrieve the data from.
 
         returns:
-            Tuple : (x, u, t)
+            Tuple : (x, u, t, a)
                 x - states
                 u - controls
                 t - corresponding time vector
         """
         if not phases:
             phases = self.phases
-        x, u, t = self.get_trajectories(phases[0])
+        x, u, t, a = self.get_trajectories(phases[0])
         if len(phases) > 1:
             for phase in phases[1:]:
-                xp, up, tp = self.get_trajectories(phase)
+                xp, up, tp, ap = self.get_trajectories(phase)
                 x = np.vstack((x, xp))
                 u = np.vstack((u, up))
                 t = np.vstack((t, tp))
+                a = np.vstack((a, ap))
 
-        return (x, u, t)
+        return (x, u, t, a)
 
     def get_interpolation_taus(
         self, n: int = 75, taus_orig: np.ndarray = None, method: str = "uniform"
@@ -1062,7 +1087,7 @@ class post_process:
             :taus: collocation grid points across which interpolation is performed
 
         returns:
-            Tuple : (x, u, t)
+            Tuple : (x, u, t, a)
                 x - interpolated states
                 u - interpolated controls
                 t - interpolated time grid
@@ -1088,7 +1113,7 @@ class post_process:
         compI = collocation.get_composite_interpolation_matrix(taus, poly_orders)
 
         # Get original solution from the solution
-        x_orig, u_orig, t_orig = self.get_original_data([phases[0]])
+        x_orig, u_orig, t_orig, a = self.get_original_data([phases[0]])
 
         # Interpolate the original solution using the composite matrix
         x, u = np.dot(compI, x_orig), np.dot(compI, u_orig)
@@ -1100,14 +1125,15 @@ class post_process:
             # Repeat the interpolation procedure across remaining phases
             # All phases are assumed to be having same composite matrix (as of now)
             for phase in phases[1:]:
-                x_orig, u_orig, t_orig = self.get_original_data([phase])
+                x_orig, u_orig, t_orig, ap = self.get_original_data([phase])
                 xp, up = np.dot(compI, x_orig), np.dot(compI, u_orig)
                 tp = self.get_interpolated_time_grid(t_orig, taus, poly_orders)
                 x = np.vstack((x, xp))
                 u = np.vstack((u, up))
                 t = np.hstack((t, tp))
+                a = np.hstack((a, ap))
 
-        return (x, u, t)
+        return (x, u, t, a)
 
     def get_data(self, phases: List = [], interpolate: bool = False):
         """Get solution corresponding to given phases (original/interpolated)
@@ -1119,20 +1145,20 @@ class post_process:
                 False - Return original data
 
         returns:
-            Tuple : (x, u, t)
+            Tuple : (x, u, t, a)
                 x - interpolated states
                 u - interpolated controls
                 t - interpolated time grid
         """
         if not phases:
             phases = self.phases
-        (x, u, t) = (
+        (x, u, t, a) = (
             self.get_interpolated_data(phases)
             if interpolate
             else self.get_original_data(phases)
         )
 
-        return (x, u, t)
+        return (x, u, t, a)
 
     def plot_phase(self, phase: int = 0, interpolate: bool = True, fig=None, axs=None):
         """Plot states and controls across given phase
@@ -1179,12 +1205,12 @@ class post_process:
                 phase = [0]
 
         if interpolate:
-            xi, ui, ti = self.get_data(phases, interpolate)
+            xi, ui, ti, _ = self.get_data(phases, interpolate)
             fig, axs = self.plot_all(
                 xi, ui, ti, legend=False, fig=fig, axs=axs, tics=tics
             )
             tics = ["."] * 15
-        x, u, t = self.get_data(phases, interpolate=False)
+        x, u, t, _ = self.get_data(phases, interpolate=False)
         fig, axs = self.plot_all(x, u, t, tics=tics, fig=fig, axs=axs, name=name)
 
         return fig, axs
@@ -1218,7 +1244,7 @@ class post_process:
             phases = self.phases
         if not dims:
             dims = range(self.nx)
-        x, _, t = self.get_data(phases, interpolate)
+        x, _, t, _ = self.get_data(phases, interpolate)
         fig, axs = self.plot_single_variable(
             x,
             t,
@@ -1267,7 +1293,7 @@ class post_process:
         if tics is None:
             tics = ["."] * 15
         if interpolate:
-            _, u, t = self.get_data(phases, interpolate=False)
+            _, u, t, _ = self.get_data(phases, interpolate=False)
             fig, axs = self.plot_single_variable(
                 u,
                 t,
