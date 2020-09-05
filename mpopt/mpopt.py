@@ -171,6 +171,9 @@ class mpopt:
         # Initialize starting segment width (Unscaled)
         h_seg = (tf - t0) / (self.tau1 - self.tau0) * self.seg_widths[seg, phase]
         # Populate the discretized dynamics, constraints and cost vectors
+        dynamics = self._ocp.get_dynamics(phase)
+        path_constraints = self._ocp.get_path_constraints(phase)
+        running_costs = self._ocp.get_running_costs(phase)
         for index in range(self._Npoints):
             if point > self.poly_orders[seg]:
                 seg, point = seg + 1, 1
@@ -183,17 +186,12 @@ class mpopt:
             t = t_seg0 + h_seg * (self._taus[self.poly_orders[seg]][point] - self.tau0)
 
             # discretize dynamics
-            f[index] = (
-                h_seg
-                * ca.mtimes(
-                    self._scX, ca.vertcat(*self._ocp.dynamics[phase](x, u, t, a))
-                ).T
-            )
+            f[index] = h_seg * ca.mtimes(self._scX, ca.vertcat(*dynamics(x, u, t, a))).T
             # discretize path_constraints
             if has_constraints:
-                c[index] = ca.vertcat(*self._ocp.path_constraints[phase](x, u, t, a)).T
+                c[index] = ca.vertcat(*path_constraints(x, u, t, a)).T
             # running cost
-            q[index] = h_seg * ca.vertcat(self._ocp.running_costs[phase](x, u, t, a)).T
+            q[index] = h_seg * ca.vertcat(running_costs(x, u, t, a)).T
 
             point += 1
             self.time_grid[phase][index] = t
@@ -274,8 +272,9 @@ class mpopt:
         has_terminal_constraints = self._ocp.has_terminal_constraints(phase)
         # Estimate constraint vector and bounds for the collocated terminal constraints
         if has_terminal_constraints:
+            terminal_constraints = self._ocp.get_terminal_constraints(phase)
             # Get unscaled starting and final times for given phase
-            TC = ca.vertcat(*self._ocp.terminal_constraints[phase](xf, tf, x0, t0, a))
+            TC = ca.vertcat(*terminal_constraints(xf, tf, x0, t0, a))
             ntc = TC.size1()
             TCmin = [self._ocp.LB_TERMINAL_CONSTRAINTS] * (ntc)
             TCmax = [self._ocp.UB_TERMINAL_CONSTRAINTS] * (ntc)
@@ -283,7 +282,8 @@ class mpopt:
             TC, TCmin, TCmax = [], [], []
 
         # Mayer term
-        J = ca.vertcat(self._ocp.terminal_costs[phase](xf, tf, x0, t0, a))
+        terminal_costs = self._ocp.get_terminal_costs(phase)
+        J = ca.vertcat(terminal_costs(xf, tf, x0, t0, a))
 
         return (TC, TCmin, TCmax, J)
 
@@ -723,7 +723,7 @@ class mpopt:
             default_options = {
                 "ipopt.max_iter": 2000,
                 "ipopt.acceptable_tol": 1e-4,
-                "ipopt.print_level": 0,
+                "ipopt.print_level": 3,
             }
         else:
             default_options = dict()
@@ -2123,14 +2123,16 @@ class mpopt_h_adaptive(mpopt):
         index = 0
         n_taus = [len(taus) for taus in taus_grid]
         residual_phase = [None] * self.n_segments
+        dynamics = self._ocp.get_dynamics(phase)
         for seg in range(self.n_segments):
             taus = taus_grid[seg]
             f = [None] * n_taus[seg]
             for i, tau in enumerate(taus):
-                f[i] = self._ocp.dynamics[phase](
+                f[i] = dynamics(
                     xi[index, :].T / self._ocp.scale_x,
                     ui[index, :].T / self._ocp.scale_u,
                     ti[index],
+                    self.A[:, phase] / self._ocp.scale_a,
                 )
                 index += 1
             start, end = sum(n_taus[:seg]), sum(n_taus[: (seg + 1)])
@@ -2445,6 +2447,7 @@ class mpopt_adaptive(mpopt):
 
         # Mid point residuals
         if self.mid_residuals:
+            dynamics = self._ocp.get_dynamics(phase)
             Dxi = ca.mtimes(comp_interpolation_D, self.X[phase])
             index = 0
             n_taus = [len(taus) for taus in taus_mid]
@@ -2464,10 +2467,11 @@ class mpopt_adaptive(mpopt):
                         * ca.mtimes(
                             self._scX,
                             ca.vertcat(
-                                *self._ocp.dynamics[phase](
+                                *dynamics(
                                     xi[index, :].T / self._ocp.scale_x,
                                     ui[index, :].T / self._ocp.scale_u,
                                     ti[index],
+                                    self.A[:, phase] / self._ocp.scale_a,
                                 )
                             ),
                         ).T
@@ -2695,7 +2699,12 @@ class OCP:
     UB_TERMINAL_CONSTRAINTS = 0
 
     def __init__(
-        self: "OCP", n_states: int = 1, n_controls: int = 1, n_phases: int = 1, **kwargs
+        self: "OCP",
+        n_states: int = 1,
+        n_controls: int = 1,
+        n_params=0,
+        n_phases: int = 1,
+        **kwargs,
     ):
         """Initialize OCP object
         For all phases, number of states and controls are assumed to be same.
@@ -2704,6 +2713,7 @@ class OCP:
         args:
             :n_states: number of state variables in the OCP
             :n_controls: number of control variables in the OCP
+            :n_params: number of algebraic parameters in each phase
             :n_phases: number of phases in the OCP
 
         returns:
@@ -2711,6 +2721,7 @@ class OCP:
         """
         self.nx = n_states
         self.nu = n_controls
+        self.na = n_params
         self.n_phases = n_phases
 
         # Define OCP terms
@@ -2735,6 +2746,7 @@ class OCP:
         # Scaling
         self.scale_x = np.array([1.0] * self.nx)
         self.scale_u = np.array([1.0] * self.nu)
+        self.scale_a = np.array([1.0] * self.na)
         self.scale_t = 1.0
 
         # Initial guess
@@ -2744,12 +2756,15 @@ class OCP:
         self.uf0 = np.array([[0.0] * self.nu for _ in range(self.n_phases)])
         self.t00 = np.array([[0.0]] * self.n_phases)
         self.tf0 = np.array([[1.0]] * self.n_phases)
+        self.a0 = np.array([[0.0] * self.na for _ in range(self.n_phases)])
 
         # Default bounds
         self.lbx = np.array([[-np.inf] * self.nx for _ in range(self.n_phases)])
         self.ubx = np.array([[np.inf] * self.nx for _ in range(self.n_phases)])
         self.lbu = np.array([[-np.inf] * self.nu for _ in range(self.n_phases)])
         self.ubu = np.array([[np.inf] * self.nu for _ in range(self.n_phases)])
+        self.lba = np.array([[-np.inf] * self.na for _ in range(self.n_phases)])
+        self.uba = np.array([[np.inf] * self.na for _ in range(self.n_phases)])
         self.lbt0 = np.array([[0.0]] * self.n_phases)
         self.ubt0 = np.array([[np.inf]] * self.n_phases)
         # First phase always starts at time zero. Hence, both lower and upper
@@ -2787,7 +2802,75 @@ class OCP:
         returns:
             :dynamics: system dynamics function with arguments x, u, t, a
         """
+        if self.na == 0:
+            dynamics = lambda x, u, t, a: self.dynamics[phase](x, u, t)
+            return dynamics
+
         return self.dynamics[phase]
+
+    def get_path_constraints(self, phase: int = 0):
+        """Get path constraints function for the given phase
+
+        args:
+            :phase: index of the phase (starting from 0)
+
+        returns:
+            :path_constraints: path constraints function with arguments x, u, t, a
+        """
+        if self.na == 0:
+            path_constraints = lambda x, u, t, a: self.path_constraints[phase](x, u, t)
+            return path_constraints
+
+        return self.path_constraints[phase]
+
+    def get_terminal_constraints(self, phase: int = 0):
+        """Get terminal_constraints function for the given phase
+
+        args:
+            :phase: index of the phase (starting from 0)
+
+        returns:
+            :terminal_constraints: system terminal_constraints function with arguments x, u, t, a
+        """
+        if self.na == 0:
+            terminal_constraints = lambda xf, tf, x0, t0, a: self.terminal_constraints[
+                phase
+            ](xf, tf, x0, t0)
+            return terminal_constraints
+
+        return self.terminal_constraints[phase]
+
+    def get_running_costs(self, phase: int = 0):
+        """Get running_costs function for the given phase
+
+        args:
+            :phase: index of the phase (starting from 0)
+
+        returns:
+            :running_costs: system running_costs function with arguments x, u, t, a
+        """
+        if self.na == 0:
+            running_costs = lambda x, u, t, a: self.running_costs[phase](x, u, t)
+            return running_costs
+
+        return self.running_costs[phase]
+
+    def get_terminal_costs(self, phase: int = 0):
+        """Get terminal_costs function for the given phase
+
+        args:
+            :phase: index of the phase (starting from 0)
+
+        returns:
+            :terminal_costs: system terminal_costs function with arguments x, u, t, a
+        """
+        if self.na == 0:
+            terminal_costs = lambda xf, tf, x0, t0, a: self.terminal_costs[phase](
+                xf, tf, x0, t0
+            )
+            return terminal_costs
+
+        return self.terminal_costs[phase]
 
     def has_path_constraints(self, phase: int = 0) -> bool:
         """Check if given phase has path constraints in given OCP
@@ -2798,8 +2881,17 @@ class OCP:
         return:
             :status: bool (True/False)
         """
+        path_constraints = self.path_constraints[phase]
+
+        if self.na == 0:
+            return (
+                path_constraints(self.x00[phase], self.u00[phase], self.t00[phase])
+                is not None
+            )
         return (
-            self.path_constraints[phase](self.x00[phase], self.u00[phase], 0)
+            path_constraints(
+                self.x00[phase], self.u00[phase], self.t00[phase], self.a0[phase]
+            )
             is not None
         )
 
@@ -2812,8 +2904,23 @@ class OCP:
         return:
             :status: bool (True/False)
         """
+        terminal_constraints = self.terminal_constraints[phase]
+
+        if self.na == 0:
+            return (
+                terminal_constraints(
+                    self.xf0[phase], self.tf0[phase], self.x00[phase], self.t00[phase],
+                )
+                is not None
+            )
         return (
-            self.terminal_constraints[phase](self.xf0[phase], 0, self.x00[phase], 0)
+            terminal_constraints(
+                self.xf0[phase],
+                self.tf0[phase],
+                self.x00[phase],
+                self.t00[phase],
+                self.a0[phase],
+            )
             is not None
         )
 
@@ -2829,13 +2936,23 @@ class OCP:
         assert len(self.terminal_constraints) == self.n_phases
 
         for phase in range(self.n_phases):
-            x, u, t = self.x00[phase], self.u00[phase], 0
-            assert len(self.dynamics[phase](x, u, t)) == self.nx
-            assert self.terminal_costs[phase](x, t, x, t) is not None
-            assert self.running_costs[phase](x, u, t) is not None
+            x, u, t, a = (
+                self.x00[phase],
+                self.u00[phase],
+                self.t00[phase],
+                self.a0[phase],
+            )
+            dynamics = self.get_dynamics(phase)
+            terminal_costs = self.get_terminal_costs(phase)
+            running_costs = self.get_running_costs(phase)
+            assert len(dynamics(x, u, t, a)) == self.nx
+            assert terminal_costs(x, t, x, t, a) is not None
+            assert running_costs(x, u, t, a) is not None
 
-            pc = self.path_constraints[phase](x, u, t)
-            tc = self.terminal_constraints[phase](x, t, x, t)
+            path_constraints = self.get_path_constraints(phase)
+            terminal_constraints = self.get_terminal_constraints(phase)
+            pc = path_constraints(x, u, t, a)
+            tc = terminal_constraints(x, t, x, t, a)
             if pc is not None:
                 assert len(pc) > 0
             if tc is not None:
@@ -2843,11 +2960,14 @@ class OCP:
 
         assert len(self.scale_x) == self.nx
         assert len(self.scale_u) == self.nu
+        assert len(self.scale_a) == self.na
 
         assert self.x00.shape == (self.n_phases, self.nx)
         assert self.xf0.shape == (self.n_phases, self.nx)
         assert self.u00.shape == (self.n_phases, self.nu)
         assert self.uf0.shape == (self.n_phases, self.nu)
+        assert self.a0.shape == (self.n_phases, self.na)
+        assert self.a0.shape == (self.n_phases, self.na)
         assert self.t00.shape == (self.n_phases, 1)
         assert self.tf0.shape == (self.n_phases, 1)
 
@@ -2855,6 +2975,8 @@ class OCP:
         assert self.ubx.shape == (self.n_phases, self.nx)
         assert self.lbu.shape == (self.n_phases, self.nu)
         assert self.ubu.shape == (self.n_phases, self.nu)
+        assert self.lba.shape == (self.n_phases, self.na)
+        assert self.uba.shape == (self.n_phases, self.na)
         assert self.lbt0.shape == (self.n_phases, 1)
         assert self.ubt0.shape == (self.n_phases, 1)
         assert self.lbtf.shape == (self.n_phases, 1)
@@ -2872,6 +2994,8 @@ class OCP:
                 assert self.lbx[phase][i] <= self.ubx[phase][i]
             for i in range(self.nu):
                 assert self.lbu[phase][i] <= self.ubu[phase][i]
+            for i in range(self.na):
+                assert self.lba[phase][i] <= self.uba[phase][i]
             assert self.lbt0[phase] <= self.ubt0[phase]
             assert self.lbtf[phase] <= self.ubtf[phase]
             if phase < self.n_phases - 1:

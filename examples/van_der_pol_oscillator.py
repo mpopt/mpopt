@@ -19,11 +19,11 @@
 #
 """Van der Pol oscilator OCP from https://web.casadi.org/docs/
 """
-try:
-    from mpopt import mp
-except ModuleNotFoundError:
-    from context import mpopt
-    from mpopt import mp
+# try:
+#     from mpopt import mp
+# except ModuleNotFoundError:
+from context import mpopt
+from mpopt import mp
 
 ocp = mp.OCP(n_states=2, n_controls=1)
 
@@ -57,17 +57,17 @@ if __name__ == "__main__":
     mpo, cgl = mp.solve(ocp, seg, p, "CGL", plot=False)
 
     fig, axs = lgr.plot_phases(name="LGR")
-    fig, axs = lgl.plot_phases(fig=fig, axs=axs, name="LGL")
-    fig, axs = cgl.plot_phases(fig=fig, axs=axs, name="CGL")
+    # fig, axs = lgl.plot_phases(fig=fig, axs=axs, name="LGL")
+    # fig, axs = cgl.plot_phases(fig=fig, axs=axs, name="CGL")
     mp.plt.title(
         f"non-adaptive solution segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
     )
 
-    mph = mp.mpopt_h_adaptive(ocp, 5, 5)
-    solh = mph.solve(max_iter=10, mpopt_options={"method": "control_slope"})
-    posth = mph.process_results(solh, plot=False)
-    fig, axs = posth.plot_phases(fig=None, axs=None)
-    mp.plt.title(
-        f"Adaptive solution segments = {mph.n_segments} poly={mph.poly_orders[0]}"
-    )
+    # mph = mp.mpopt_h_adaptive(ocp, 5, 5)
+    # solh = mph.solve(max_iter=10, mpopt_options={"method": "control_slope"})
+    # posth = mph.process_results(solh, plot=False)
+    # fig, axs = posth.plot_phases(fig=None, axs=None)
+    # mp.plt.title(
+    #     f"Adaptive solution segments = {mph.n_segments} poly={mph.poly_orders[0]}"
+    # )
     mp.plt.show()
