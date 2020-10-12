@@ -2318,6 +2318,7 @@ class mpopt_adaptive(mpopt):
             self.U[phase][:],
             self.t0[phase],
             self.tf[phase],
+            self.A[:, phase],
             self.seg_widths[:, phase],
         )
 
@@ -2335,6 +2336,7 @@ class mpopt_adaptive(mpopt):
                 np.repeat(self._ocp.lbu[phase] * self._ocp.scale_u, self._Npoints),
                 self._ocp.lbt0[phase] * self._ocp.scale_t,
                 self._ocp.lbtf[phase] * self._ocp.scale_t,
+                self._ocp.lba[phase] * self._ocp.scale_a,
                 [self.lbh[phase]] * self.n_segments,
             ]
         )
@@ -2344,6 +2346,7 @@ class mpopt_adaptive(mpopt):
                 np.repeat(self._ocp.ubu[phase] * self._ocp.scale_u, self._Npoints),
                 self._ocp.ubt0[phase] * self._ocp.scale_t,
                 self._ocp.ubtf[phase] * self._ocp.scale_t,
+                self._ocp.uba[phase] * self._ocp.scale_a,
                 [self.ubh[phase]] * self.n_segments,
             ]
         )
@@ -2363,13 +2366,14 @@ class mpopt_adaptive(mpopt):
         returns:
             solution : initialized solution for given phase
         """
-        z0 = [None] * 5
+        z0 = [None] * 6
         x00 = self._ocp.x00[phase] * self._ocp.scale_x
         xf0 = self._ocp.xf0[phase] * self._ocp.scale_x
         u00 = self._ocp.u00[phase] * self._ocp.scale_u
         uf0 = self._ocp.uf0[phase] * self._ocp.scale_u
         t00 = self._ocp.t00[phase] * self._ocp.scale_t
         tf0 = self._ocp.tf0[phase] * self._ocp.scale_t
+        a0 = self._ocp.a0[phase] * self._ocp.scale_a
 
         # Linear interpolation of states
         z0[0] = np.concatenate(
@@ -2389,8 +2393,8 @@ class mpopt_adaptive(mpopt):
                 ]
             )
         )
-        z0[2], z0[3] = t00, tf0
-        z0[4] = [1.0 / self.n_segments] * self.n_segments
+        z0[2], z0[3], z0[4] = t00, tf0, a0
+        z0[5] = [1.0 / self.n_segments] * self.n_segments
 
         return np.concatenate(z0)
 
@@ -2623,10 +2627,15 @@ class mpopt_adaptive(mpopt):
         """
         x = self.X[phase]
         u = self.U[phase]
+        a = self.A[:, phase]
         t0, tf = self.t0[phase] / self._ocp.scale_t, self.tf[phase] / self._ocp.scale_t
         t = ca.vertcat(*self.time_grid[phase])
         trajectories = ca.Function(
-            "x_traj", [self.Z], [x, u, t, t0, tf], ["z"], ["x", "u", "t", "t0", "tf"],
+            "x_traj",
+            [self.Z],
+            [x, u, t, t0, tf, a],
+            ["z"],
+            ["x", "u", "t", "t0", "tf", "a"],
         )
 
         return trajectories
@@ -2653,6 +2662,7 @@ class mpopt_adaptive(mpopt):
         options = {
             "nx": self._ocp.nx,
             "nu": self._ocp.nu,
+            "na": self._ocp.na,
             "nPh": self._ocp.n_phases,
             "ns": self.n_segments,
             "poly_orders": self.poly_orders,
@@ -2660,6 +2670,7 @@ class mpopt_adaptive(mpopt):
             "phases_to_plot": self._ocp.phases_to_plot,
             "scale_x": self._ocp.scale_x,
             "scale_u": self._ocp.scale_u,
+            "scale_a": self._ocp.scale_a,
             "scale_t": self._ocp.scale_t,
             "scaling": scaling,
             "colloc_scheme": self.colloc_scheme,
