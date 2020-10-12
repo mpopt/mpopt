@@ -1498,10 +1498,10 @@ class mpopt_h_adaptive(mpopt):
     Examples :
         >>> # Moon lander problem
         >>> from mpopt import mp
-        >>> ocp = mp.OCP(n_states=2, n_controls=1, n_phases=1)
-        >>> ocp.dynamics[0] = lambda x, u, t: [x[1], u[0] - 1.5]
-        >>> ocp.running_costs[0] = lambda x, u, t: u[0]
-        >>> ocp.terminal_constraints[0] = lambda xf, tf, x0, t0: [xf[0], xf[1]]
+        >>> ocp = mp.OCP(n_states=2, n_controls=1, n_params=0, n_phases=1)
+        >>> ocp.dynamics[0] = lambda x, u, t, a: [x[1], u[0] - 1.5]
+        >>> ocp.running_costs[0] = lambda x, u, t, a: u[0]
+        >>> ocp.terminal_constraints[0] = lambda xf, tf, x0, t0, a: [xf[0], xf[1]]
         >>> ocp.x00[0] = [10, -2]
         >>> ocp.lbu[0] = 0; ocp.ubu[0] = 3
         >>> ocp.lbtf[0] = 3; ocp.ubtf[0] = 5
@@ -1966,7 +1966,7 @@ class mpopt_h_adaptive(mpopt):
                 continue
 
             trajectories = self.init_trajectories(phase)
-            x, u, t, t0, tf = trajectories(solution["x"], self._nlp_sw_params)
+            x, u, t, t0, tf, a = trajectories(solution["x"], self._nlp_sw_params)
             t0, tf = np.concatenate(t0.full()), np.concatenate(tf.full())
             target_nodes = self.get_residual_grid_taus(phase)
             target_grid = self.get_interpolated_time_grid(
@@ -2114,7 +2114,7 @@ class mpopt_h_adaptive(mpopt):
         returns:
             :residuals: residual vector for the dynamics at the given taus
         """
-        xi, ui, ti, Dxi, Dui, taus_grid = self.interpolate_single_phase(
+        xi, ui, ti, a, Dxi, Dui, taus_grid = self.interpolate_single_phase(
             solution, phase, target_nodes=target_nodes, options={}
         )
         seg_widths = self._nlp_sw_params[
@@ -2132,7 +2132,7 @@ class mpopt_h_adaptive(mpopt):
                     xi[index, :].T / self._ocp.scale_x,
                     ui[index, :].T / self._ocp.scale_u,
                     ti[index],
-                    self.A[:, phase] / self._ocp.scale_a,
+                    a / self._ocp.scale_a,
                 )
                 index += 1
             start, end = sum(n_taus[:seg]), sum(n_taus[: (seg + 1)])
@@ -2214,7 +2214,7 @@ class mpopt_h_adaptive(mpopt):
                 DU - Derivative of the interpolated controls based on PS polynomials
         """
         trajectories = self.init_trajectories(phase)
-        x, u, t, t0, tf = trajectories(solution["x"], self._nlp_sw_params)
+        x, u, t, t0, tf, a = trajectories(solution["x"], self._nlp_sw_params)
         t0, tf = np.concatenate(t0.full()), np.concatenate(tf.full())
 
         if target_nodes is None:
@@ -2246,7 +2246,7 @@ class mpopt_h_adaptive(mpopt):
                 Xi.full(), Ui.full(), ti, fig=fig, axs=axs, legend=False
             )
 
-        return (Xi, Ui, ti, DXi, DUi, target_nodes)
+        return (Xi, Ui, ti, a, DXi, DUi, target_nodes)
 
 
 class mpopt_adaptive(mpopt):
