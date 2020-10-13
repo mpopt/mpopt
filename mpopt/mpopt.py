@@ -1306,7 +1306,7 @@ class post_process:
                 tics=tics,
             )
 
-        _, u, t = self.get_data(phases, interpolate)
+        _, u, t, _ = self.get_data(phases, interpolate)
         fig, axs = self.plot_single_variable(
             u,
             t,
