@@ -1,7 +1,7 @@
 #
 # Copyright (c) 2020 LA EPFL.
 #
-# This file is part of MPOPT 
+# This file is part of MPOPT
 # (see http://github.com/mpopt).
 #
 # This program is free software: you can redistribute it and/or modify
@@ -28,11 +28,11 @@ from mpopt import mp
     [
         mp.OCP(),
         mp.OCP(n_states=1, n_controls=0),
-        mp.OCP(0, 1),
-        mp.OCP(1, 1, 2),
-        mp.OCP(2, 1, 2),
-        mp.OCP(1, 2, 2),
-        mp.OCP(5, 4, n_phases=3),
+        mp.OCP(n_states=0, n_controls=1),
+        mp.OCP(n_states=1, n_controls=1, n_phases=2),
+        mp.OCP(n_states=2, n_controls=1, n_phases=2),
+        mp.OCP(n_states=1, n_controls=2, n_phases=2),
+        mp.OCP(n_states=5, n_controls=4, n_phases=3),
     ],
 )
 def test_ocp_defaults(ocp):
@@ -85,7 +85,7 @@ def test_ocp_defaults(ocp):
 
 @pytest.fixture
 def test_ocp():
-    ocp = mp.OCP(2, 2, 2)
+    ocp = mp.OCP(n_states=2, n_controls=2, n_phases=2)
 
     dynamics = lambda x, u, t: [u[0], u[0]]
     path_constraints = lambda x, u, t: [x[0] + 1, u[0]]
@@ -337,7 +337,10 @@ def test_mpopt_collocation_basis(test_mpo):
     assert test_mpo._compW.shape == (1, Npoints)
     for p in poly_orders:
         assert len(test_mpo._taus[p]) == p + 1
-    assert test_mpo._compD.shape == (Npoints, Npoints,)
+    assert test_mpo._compD.shape == (
+        Npoints,
+        Npoints,
+    )
     assert test_mpo._collocation_approximation_computed
 
 
@@ -416,8 +419,8 @@ def test_moon_lander_mpopt_solve(moon_lander_mpo):
     for key in ["x", "f"]:
         assert key in sol
     post = moon_lander_mpo.process_results(sol, plot=False)
-    x, u, t = post.get_data()
-    xi, ui, ti = post.get_data(interpolate=True)
+    x, u, t, _ = post.get_data()
+    xi, ui, ti, _ = post.get_data(interpolate=True)
 
     assert x.shape[0] == u.shape[0] == t.shape[0]
     assert xi.shape[0] == ui.shape[0] == ti.shape[0]
@@ -428,8 +431,8 @@ def test_moon_lander_h_adaptive_solve(moon_lander_mpo_h_adaptive):
     for key in ["x", "f"]:
         assert key in sol
     post = moon_lander_mpo_h_adaptive.process_results(sol, plot=False)
-    x, u, t = post.get_data()
-    xi, ui, ti = post.get_data(interpolate=True)
+    x, u, t, _ = post.get_data()
+    xi, ui, ti, _ = post.get_data(interpolate=True)
 
     assert x.shape[0] == u.shape[0] == t.shape[0]
     assert xi.shape[0] == ui.shape[0] == ti.shape[0]
@@ -443,8 +446,8 @@ def test_moon_lander_h_adaptive2_solve(moon_lander_mpo_h_adaptive):
     for key in ["x", "f"]:
         assert key in sol
     post = moon_lander_mpo_h_adaptive.process_results(sol, plot=False)
-    x, u, t = post.get_data()
-    xi, ui, ti = post.get_data(interpolate=True)
+    x, u, t, _ = post.get_data()
+    xi, ui, ti, _ = post.get_data(interpolate=True)
 
     assert x.shape[0] == u.shape[0] == t.shape[0]
     assert xi.shape[0] == ui.shape[0] == ti.shape[0]
@@ -458,8 +461,8 @@ def test_moon_lander_h_adaptive3_solve(moon_lander_mpo_h_adaptive):
     for key in ["x", "f"]:
         assert key in sol
     post = moon_lander_mpo_h_adaptive.process_results(sol, plot=False)
-    x, u, t = post.get_data()
-    xi, ui, ti = post.get_data(interpolate=True)
+    x, u, t, _ = post.get_data()
+    xi, ui, ti, _ = post.get_data(interpolate=True)
 
     assert x.shape[0] == u.shape[0] == t.shape[0]
     assert xi.shape[0] == ui.shape[0] == ti.shape[0]
@@ -471,8 +474,8 @@ def test_moon_lander_mpopt_adaptive_solve(moon_lander_mpo_adaptive):
     for key in ["x", "f"]:
         assert key in sol
     post = moon_lander_mpo_adaptive.process_results(sol, plot=False)
-    x, u, t = post.get_data()
-    xi, ui, ti = post.get_data(interpolate=True)
+    x, u, t, _ = post.get_data()
+    xi, ui, ti, _ = post.get_data(interpolate=True)
 
     assert x.shape[0] == u.shape[0] == t.shape[0]
     assert xi.shape[0] == ui.shape[0] == ti.shape[0]
@@ -483,8 +486,8 @@ def test_hyper_sensitive_mpopt_solve(hyper_sensitive_mpo):
     for key in ["x", "f"]:
         assert key in sol
     post = hyper_sensitive_mpo.process_results(sol, plot=False)
-    x, u, t = post.get_data()
-    xi, ui, ti = post.get_data(interpolate=True)
+    x, u, t, _ = post.get_data()
+    xi, ui, ti, _ = post.get_data(interpolate=True)
 
     assert x.shape[0] == u.shape[0] == t.shape[0]
     assert xi.shape[0] == ui.shape[0] == ti.shape[0]
@@ -497,8 +500,8 @@ def test_hyper_sensitive_h_adaptive_solve(hyper_sensitive_mpo_h_adaptive):
     for key in ["x", "f"]:
         assert key in sol
     post = hyper_sensitive_mpo_h_adaptive.process_results(sol, plot=False)
-    x, u, t = post.get_data()
-    xi, ui, ti = post.get_data(interpolate=True)
+    x, u, t, _ = post.get_data()
+    xi, ui, ti, _ = post.get_data(interpolate=True)
 
     assert x.shape[0] == u.shape[0] == t.shape[0]
     assert xi.shape[0] == ui.shape[0] == ti.shape[0]
@@ -512,8 +515,8 @@ def test_hyper_sensitive_h_adaptive2_solve(hyper_sensitive_mpo_h_adaptive):
     for key in ["x", "f"]:
         assert key in sol
     post = hyper_sensitive_mpo_h_adaptive.process_results(sol, plot=False)
-    x, u, t = post.get_data()
-    xi, ui, ti = post.get_data(interpolate=True)
+    x, u, t, _ = post.get_data()
+    xi, ui, ti, _ = post.get_data(interpolate=True)
 
     assert x.shape[0] == u.shape[0] == t.shape[0]
     assert xi.shape[0] == ui.shape[0] == ti.shape[0]
@@ -527,8 +530,8 @@ def test_hyper_sensitive_h_adaptive3_solve(hyper_sensitive_mpo_h_adaptive):
     for key in ["x", "f"]:
         assert key in sol
     post = hyper_sensitive_mpo_h_adaptive.process_results(sol, plot=False)
-    x, u, t = post.get_data()
-    xi, ui, ti = post.get_data(interpolate=True)
+    x, u, t, _ = post.get_data()
+    xi, ui, ti, _ = post.get_data(interpolate=True)
 
     assert x.shape[0] == u.shape[0] == t.shape[0]
     assert xi.shape[0] == ui.shape[0] == ti.shape[0]
@@ -539,8 +542,8 @@ def test_hyper_sensitive_mpopt_adaptive_solve(hyper_sensitive_mpo_adaptive):
     for key in ["x", "f"]:
         assert key in sol
     post = hyper_sensitive_mpo_adaptive.process_results(sol, plot=False)
-    x, u, t = post.get_data()
-    xi, ui, ti = post.get_data(interpolate=True)
+    x, u, t, _ = post.get_data()
+    xi, ui, ti, _ = post.get_data(interpolate=True)
 
     assert x.shape[0] == u.shape[0] == t.shape[0]
     assert xi.shape[0] == ui.shape[0] == ti.shape[0]
@@ -551,8 +554,8 @@ def test_two_phase_schwartz_mpopt_solve(two_phase_schwartz_mpo):
     for key in ["x", "f"]:
         assert key in sol
     post = two_phase_schwartz_mpo.process_results(sol, plot=False)
-    x, u, t = post.get_data()
-    xi, ui, ti = post.get_data(interpolate=True)
+    x, u, t, _ = post.get_data()
+    xi, ui, ti, _ = post.get_data(interpolate=True)
 
     assert x.shape[0] == u.shape[0] == t.shape[0]
     assert xi.shape[0] == ui.shape[0] == ti.shape[0]
@@ -575,8 +578,8 @@ def test_van_der_pol_mpopt_solve(van_der_pol_mpo_lgl):
     for key in ["x", "f"]:
         assert key in sol
     post = van_der_pol_mpo_lgl.process_results(sol, plot=False)
-    x, u, t = post.get_data()
-    xi, ui, ti = post.get_data(interpolate=True)
+    x, u, t, _ = post.get_data()
+    xi, ui, ti, _ = post.get_data(interpolate=True)
 
     assert x.shape[0] == u.shape[0] == t.shape[0]
     assert xi.shape[0] == ui.shape[0] == ti.shape[0]
@@ -590,8 +593,40 @@ def test_van_der_pol_mpopt_solve(van_der_pol_mpo_cgl):
     fig, axs = post.plot_phases()
     fig, axs = post.plot_x()
     fig, axs = post.plot_u()
-    x, u, t = post.get_data()
-    xi, ui, ti = post.get_data(interpolate=True)
+    x, u, t, _ = post.get_data()
+    xi, ui, ti, _ = post.get_data(interpolate=True)
 
     assert x.shape[0] == u.shape[0] == t.shape[0]
     assert xi.shape[0] == ui.shape[0] == ti.shape[0]
+
+
+@pytest.fixture
+def test_collocation():
+    collocation = mp.Collocation([3], "LGR")
+
+    return collocation
+
+
+def test_collocation_matrices_numerical_and_symbolic():
+    mp.Collocation.D_MATRIX_METHOD = "numerical"
+    collocation = mp.Collocation([3], "LGR")
+    compDn = collocation.get_composite_differentiation_matrix()
+    compWn = collocation.get_composite_quadrature_weights()
+
+    mp.Collocation.D_MATRIX_METHOD = "symbolic"
+    collocation_sym = mp.Collocation([3], "LGR")
+    compD = collocation_sym.get_composite_differentiation_matrix()
+    compW = collocation_sym.get_composite_quadrature_weights()
+
+    assert abs(compD.full() - compDn.full()).max() < 1e-5
+    assert abs(compW.full() - compWn.full()).max() < 1e-5
+
+
+def test_mpopt_collocation_basis(test_collocation):
+    compD = test_collocation.get_composite_differentiation_matrix()
+    compW = test_collocation.get_composite_quadrature_weights()
+    taus = test_collocation.roots[test_collocation.poly_orders[0]]
+    tau0, tau1 = test_collocation.tau0, test_collocation.tau1
+
+    assert tau0 == taus[0]
+    assert tau1 == taus[-1]

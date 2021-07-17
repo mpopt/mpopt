@@ -654,7 +654,11 @@ class mpopt:
             np.array(
                 [
                     x00 + (xf0 - x00) / (tf0 - t00) * (t - t00)
-                    for t in np.linspace(t00, tf0, self._Npoints,)
+                    for t in np.linspace(
+                        t00,
+                        tf0,
+                        self._Npoints,
+                    )
                 ]
             ).T
         )
@@ -663,7 +667,11 @@ class mpopt:
             np.array(
                 [
                     u00 + (uf0 - u00) / (tf0 - t00) * (t - t00)
-                    for t in np.linspace(t00, tf0, self._Npoints,)
+                    for t in np.linspace(
+                        t00,
+                        tf0,
+                        self._Npoints,
+                    )
                 ]
             )
         )
@@ -1439,8 +1447,7 @@ class post_process:
 
     @staticmethod
     def sort_residual_data(time, residuals, phases: List = [0]):
-        """ Sort the given data corresponding to plases
-        """
+        """Sort the given data corresponding to plases"""
         norm_residual = lambda residual: np.concatenate(
             [
                 np.linalg.norm(err.full(), 2, axis=1) if err != None else []
@@ -1468,8 +1475,7 @@ class post_process:
         axs=None,
         tics=None,
     ):
-        """Plot residual in dynamics
-        """
+        """Plot residual in dynamics"""
         if tics is None:
             tics = self.__TICS
         if (fig == None) and (axs == None):
@@ -1708,11 +1714,13 @@ class mpopt_h_adaptive(mpopt):
         if grid_type == "fixed":
             # Equally spaced nodes per phase
             target_nodes = np.linspace(self.tau0, self.tau1, self._MAX_GRID_POINTS)
-            taus_on_original_grid = self.compute_interpolation_taus_corresponding_to_original_grid(
-                target_nodes,
-                self._nlp_sw_params[
-                    self.n_segments * phase : self.n_segments * (phase + 1)
-                ],
+            taus_on_original_grid = (
+                self.compute_interpolation_taus_corresponding_to_original_grid(
+                    target_nodes,
+                    self._nlp_sw_params[
+                        self.n_segments * phase : self.n_segments * (phase + 1)
+                    ],
+                )
             )
             # Add 0 to the taus as it is not included by default
             taus_on_original_grid[0] = np.append(self.tau0, taus_on_original_grid[0])
@@ -1732,7 +1740,9 @@ class mpopt_h_adaptive(mpopt):
         return taus_on_original_grid
 
     def compute_seg_width_based_on_residuals(
-        self, solution, method: str = "merge_split",
+        self,
+        solution,
+        method: str = "merge_split",
     ):
         """Compute the optimum segment widths based on residual of the dynamics in each segment.
 
@@ -1839,8 +1849,7 @@ class mpopt_h_adaptive(mpopt):
 
     @staticmethod
     def get_roots_wrt_equal_area(residuals, n_segments):
-        """
-        """
+        """"""
         n_points = len(residuals)
         areas = [0.5 * (residuals[i] + residuals[i + 1]) for i in range(n_points - 1)]
         cumulative_area = np.append(0, np.cumsum(areas))
@@ -2043,8 +2052,7 @@ class mpopt_h_adaptive(mpopt):
 
     @staticmethod
     def compute_segment_widths_at_times(times, n_segments, t0, tf):
-        """Compute seg_width fractions corresponding to given times and number of segments
-        """
+        """Compute seg_width fractions corresponding to given times and number of segments"""
         n_points_available = len(times)
         segment_widths = [None] * n_segments
         if n_points_available > (n_segments - 2):
@@ -2380,7 +2388,11 @@ class mpopt_adaptive(mpopt):
             np.array(
                 [
                     x00 + (xf0 - x00) / (tf0 - t00) * (t - t00)
-                    for t in np.linspace(t00, tf0, self._Npoints,)
+                    for t in np.linspace(
+                        t00,
+                        tf0,
+                        self._Npoints,
+                    )
                 ]
             ).T
         )
@@ -2389,7 +2401,11 @@ class mpopt_adaptive(mpopt):
             np.array(
                 [
                     u00 + (uf0 - u00) / (tf0 - t00) * (t - t00)
-                    for t in np.linspace(t00, tf0, self._Npoints,)
+                    for t in np.linspace(
+                        t00,
+                        tf0,
+                        self._Npoints,
+                    )
                 ]
             )
         )
@@ -2399,8 +2415,7 @@ class mpopt_adaptive(mpopt):
         return np.concatenate(z0)
 
     def get_nlp_constrains_for_segment_widths(self, phase: int = 0) -> Tuple:
-        """Add additional constraints on segment widths to the original NLP
-        """
+        """Add additional constraints on segment widths to the original NLP"""
         sw, swmin, swmax = [], [], []
         # Sum equals 1 (Segment width is normalized)
         sw.append(ca.sum1(self.seg_widths[:, phase]) - 1.0)
@@ -2713,8 +2728,8 @@ class OCP:
         self: "OCP",
         n_states: int = 1,
         n_controls: int = 1,
-        n_params=0,
         n_phases: int = 1,
+        n_params=0,
         **kwargs,
     ):
         """Initialize OCP object
@@ -2920,7 +2935,10 @@ class OCP:
         if self.na == 0:
             return (
                 terminal_constraints(
-                    self.xf0[phase], self.tf0[phase], self.x00[phase], self.t00[phase],
+                    self.xf0[phase],
+                    self.tf0[phase],
+                    self.x00[phase],
+                    self.t00[phase],
                 )
                 is not None
             )
@@ -2936,8 +2954,7 @@ class OCP:
         )
 
     def validate(self) -> None:
-        """Validate dimensions and initialization of attributes
-        """
+        """Validate dimensions and initialization of attributes"""
         assert self.n_phases > 0
 
         assert len(self.dynamics) == self.n_phases
@@ -2956,14 +2973,14 @@ class OCP:
             dynamics = self.get_dynamics(phase)
             terminal_costs = self.get_terminal_costs(phase)
             running_costs = self.get_running_costs(phase)
+            path_constraints = self.get_path_constraints(phase)
+            terminal_constraints = self.get_terminal_constraints(phase)
             assert len(dynamics(x, u, t, a)) == self.nx
             assert terminal_costs(x, t, x, t, a) is not None
             assert running_costs(x, u, t, a) is not None
-
-            path_constraints = self.get_path_constraints(phase)
-            terminal_constraints = self.get_terminal_constraints(phase)
             pc = path_constraints(x, u, t, a)
             tc = terminal_constraints(x, t, x, t, a)
+
             if pc is not None:
                 assert len(pc) > 0
             if tc is not None:
@@ -3024,6 +3041,9 @@ class Collocation:
     Hence, computer precision can affect these derivative calculations
 
     """
+
+    D_MATRIX_METHOD = "numerical"  # "symbolic"
+    TVAR = ca.SX.sym("t")
 
     def __init__(
         self,
@@ -3126,7 +3146,10 @@ class Collocation:
         n_j = len(self.polys[degree])
         D = ca.DM.zeros((n_i, n_j))
         for j, p in enumerate(self.polys[degree]):
-            pder = np.polyder(p)
+            if self.D_MATRIX_METHOD == "symbolic":
+                pder = ca.Function("pder", [self.TVAR], [ca.jacobian(p, self.TVAR)])
+            else:
+                pder = np.polyder(p)
             for i in range(n_i):
                 D[i, j] = pder(eval_D_at[i])
 
@@ -3144,8 +3167,19 @@ class Collocation:
         n = len(self.roots[degree])
         quad_weights = ca.DM.zeros(n)
         for i in range(n):
-            pint = np.polyint(self.polys[degree][i])
-            quad_weights[i] = pint(1.0)
+            if self.D_MATRIX_METHOD == "symbolic":
+                pint = ca.integrator(
+                    "pint",
+                    "idas",
+                    {"x": ca.SX.sym("x"), "t": self.TVAR, "ode": self.polys[degree][i]},
+                    {"t0": 0, "tf": 1},
+                )
+                quad_weights[i] = pint(x0=0)[
+                    "xf"
+                ]  # By default integrator evaluates the final value at tf
+            else:
+                pint = np.polyint(self.polys[degree][i])
+                quad_weights[i] = pint(1.0)
 
         return quad_weights
 
@@ -3163,6 +3197,10 @@ class Collocation:
         n_i = len(taus)  # rows
         C = ca.DM.zeros((n_i, n_j))
         for j, p in enumerate(self.polys[degree]):
+            if self.D_MATRIX_METHOD == "symbolic":
+                poly = ca.Function("p", [self.TVAR], [p])
+            else:
+                poly = p
             for i in range(n_i):
                 C[i, j] = p(taus[i])
 
@@ -3244,8 +3282,8 @@ class Collocation:
 
         return basis_mats
 
-    @staticmethod
-    def get_lagrange_polynomials(roots):
+    @classmethod
+    def get_lagrange_polynomials(self, roots):
         """Get basis polynomials given the collocation nodes
 
         args:
@@ -3254,12 +3292,21 @@ class Collocation:
         """
         n = len(roots)
         polys = [None] * n
-        for j in range(n):
-            p = np.poly1d([1])
-            for i in range(n):
-                if i != j:
-                    p *= np.poly1d([1, -roots[i]]) / (roots[j] - roots[i])
-            polys[j] = p
+
+        if self.D_MATRIX_METHOD == "symbolic":
+            for j in range(n):
+                p = ca.DM(1)
+                for i in range(n):
+                    if i != j:
+                        p *= (self.TVAR - roots[i]) / (roots[j] - roots[i])
+                polys[j] = p
+        else:
+            for j in range(n):
+                p = np.poly1d([1])
+                for i in range(n):
+                    if i != j:
+                        p *= np.poly1d([1, -roots[i]]) / (roots[j] - roots[i])
+                polys[j] = p
 
         return polys
 
@@ -3331,7 +3378,8 @@ class Collocation:
                 continue
             start_row, start_col = sum(n_taus[:i]), sum(poly_orders[:i])
             comp_matrix[
-                start_row : start_row + n_taus[i], start_col : start_col + (1 + p),
+                start_row : start_row + n_taus[i],
+                start_col : start_col + (1 + p),
             ] = C[i]
         return comp_matrix
 
@@ -3363,7 +3411,8 @@ class Collocation:
                 continue
             start_row, start_col = sum(n_taus[:i]), sum(poly_orders[:i])
             comp_Dmatrix[
-                start_row : start_row + n_taus[i], start_col : start_col + (1 + p),
+                start_row : start_row + n_taus[i],
+                start_col : start_col + (1 + p),
             ] = D[i]
         return comp_Dmatrix
 
@@ -3371,10 +3420,10 @@ class Collocation:
 class CollocationRoots:
     """Functionality related to commonly used gauss quadrature schemes such as
 
-        Legendre-Gauss (LG)
-        Legendre-Gauss-Radau (LGR)
-        Legendre-Gauss-Lobatto (LGL)
-        Chebyshev-Gauss-Lobatto (CGL)
+    Legendre-Gauss (LG)
+    Legendre-Gauss-Radau (LGR)
+    Legendre-Gauss-Lobatto (LGL)
+    Chebyshev-Gauss-Lobatto (CGL)
     """
 
     # Min and max for the roots (Not yet implemented)
@@ -3516,7 +3565,7 @@ class CollocationRoots:
 def solve(
     ocp, n_segments=1, poly_orders=9, scheme="LGR", plot=True, solve_dict: Dict = dict()
 ):
-    """ Solve OCP by creating optimizer and process results
+    """Solve OCP by creating optimizer and process results
 
     args:
         ocp: well defined OCP object

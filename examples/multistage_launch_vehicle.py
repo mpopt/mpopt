@@ -313,7 +313,7 @@ if __name__ == "__main__":
     post = mpo.process_results(sol, plot=False, scaling=False)
 
     # ************** Plot height and velocity ************************
-    x, u, t = post.get_data(interpolate=True)
+    x, u, t, _ = post.get_data(interpolate=True)
     print("Final time : ", t[-1])
     figu, axsu = post.plot_u()
 
@@ -336,7 +336,7 @@ if __name__ == "__main__":
     y = np.column_stack((r, v))
     fig, axs = post.plot_single_variable(y, t, [[0], [1]], axis=0)
 
-    x, u, t = post.get_data(interpolate=False)
+    x, u, t, _ = post.get_data(interpolate=False)
     r = 1e-3 * (np.sqrt(x[:, 0] ** 2 + x[:, 1] ** 2 + x[:, 2] ** 2) - Re)
     v = 1e-3 * np.sqrt(x[:, 3] ** 2 + x[:, 4] ** 2 + x[:, 5] ** 2)
     y = np.column_stack((r, v))
