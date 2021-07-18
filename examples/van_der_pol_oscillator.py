@@ -51,7 +51,7 @@ ocp.validate()
 if __name__ == "__main__":
     mp.post_process._INTERPOLATION_NODES_PER_SEG = 200
 
-    seg, p = 1, 15
+    seg, p = 1, 25
     mpo, lgr = mp.solve(ocp, seg, p, "LGR", plot=False)
     mpo, lgl = mp.solve(ocp, seg, p, "LGL", plot=False)
     mpo, cgl = mp.solve(ocp, seg, p, "CGL", plot=False)

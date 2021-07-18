@@ -3042,7 +3042,7 @@ class Collocation:
 
     """
 
-    D_MATRIX_METHOD = "numerical"  # "symbolic"
+    D_MATRIX_METHOD = "symbolic"  # "symbolic"
     TVAR = ca.SX.sym("t")
 
     def __init__(
@@ -3202,7 +3202,7 @@ class Collocation:
             else:
                 poly = p
             for i in range(n_i):
-                C[i, j] = p(taus[i])
+                C[i, j] = poly(taus[i])
 
         return C
 
