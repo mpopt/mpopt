@@ -204,7 +204,7 @@ ocp.validate()
 # Solve with drag disables
 ocp.dynamics = get_dynamics(0)
 
-seg, p, max_iter = 6, 6, 2
+seg, p, max_iter = 50, 3, 1
 mpo = mp.mpopt_h_adaptive(ocp, seg, p)
 mpo._INTERPOLATION_NODES_PER_SEG = 100
 mpo.lbh[0] = 1e-2
@@ -217,7 +217,7 @@ ocp.path_constraints[0] = lambda x, u, t: path_constraints0(x, u, t, dynP=1.0)
 
 sol = mpo.solve(
     sol,
-    max_iter=max_iter,
+    max_iter=5,
     mpopt_options={"method": "control_slope", "sub_method": ""},
     reinitialize_nlp=True,
 )

@@ -228,7 +228,7 @@ post._INTERPOLATION_NODES_PER_SEG = 200
 # ************** Plot height and velocity ************************
 ocp.phase_links = [[0]]
 for phase_link in ocp.phase_links:
-    x, u, t = post.get_data(phases=phase_link, interpolate=True)
+    x, u, t, _ = post.get_data(phases=phase_link, interpolate=True)
     # figx, _ = post.plot_x([[0, 1, 2], [3, 4, 5], [6]])
     # figu, axsu = post.plot_u(phases=phase_link)
     figu, axsu = post.plot_u(phases=phase_link, fig=None, axs=None, tics=["."] * 15)
@@ -237,7 +237,7 @@ for phase_link in ocp.phase_links:
     y = np.column_stack((r, v))
     fig, axs = post.plot_single_variable(y, t, [[0], [1]], axis=0)
 
-    x, u, t = post.get_data(phases=phase_link, interpolate=False)
+    x, u, t, _ = post.get_data(phases=phase_link, interpolate=False)
     r = 1e-3 * (np.sqrt(x[:, 0] ** 2 + x[:, 1] ** 2 + x[:, 2] ** 2) - Re)
     v = np.sqrt(x[:, 3] ** 2 + x[:, 4] ** 2 + x[:, 5] ** 2)
     y = np.column_stack((r, v))
