@@ -33,7 +33,7 @@ requirements = [
 
 setup(
     name="mpopt",
-    version="0.1.4",
+    version="0.1.5",
     author="Devakumar THAMMISETTY, Colin Jones",
     author_email="deva.aerospace@gmail.com",
     description="A Multi-phase nonlinear Optimal control problem solver using Pseudo-spectral collocation",
