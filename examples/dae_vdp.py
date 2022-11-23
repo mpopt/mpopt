@@ -62,14 +62,14 @@ ocp.validate()
 if __name__ == "__main__":
     mp.post_process._INTERPOLATION_NODES_PER_SEG = 200
 
-    seg, p = 3, 9
-    mpo, lgr = mp.solve(ocp, seg, p, "LGR", plot=False)
-    # mpo, lgl = mp.solve(ocp, seg, p, "LGL", plot=False)
-    # mpo, cgl = mp.solve(ocp, seg, p, "CGL", plot=False)
-    x, u, t, a = lgr.get_data()
+    seg, p = 30, 3
+    mpo, lg = mp.solve(ocp, seg, p, "LGR", plot=False)
+    # mpo, lg = mp.solve(ocp, seg, p, "LGL", plot=False)
+    # mpo, lg = mp.solve(ocp, seg, p, "CGL", plot=False)
+    x, u, t, a = lg.get_data()
     print(a)
 
-    fig, axs = lgr.plot_phases(name="LGR")
+    fig, axs = lg.plot_phases(name="LGR")
     # fig, axs = lgl.plot_phases(fig=fig,
     # axs=axs, name="LGL")
     # fig, axs = cgl.plot_phases(fig=fig, axs=axs, name="CGL")
@@ -77,13 +77,17 @@ if __name__ == "__main__":
         f"non-adaptive solution segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
     )
 
-    mph = mp.mpopt_adaptive(ocp, seg, p)
-    solh = mph.solve(max_iter=10, mpopt_options={"method": "control_slope"})
+    mp.mpopt_h_adaptive._TOL_RESIDUAL = 1e-4
+    mph = mp.mpopt_h_adaptive(ocp, seg, p)
+    solh = mph.solve(
+        max_iter=10, mpopt_options={"method": "residual", "sub_method": "merge_split"}
+    )
     posth = mph.process_results(solh, plot=False)
     fig, axs = posth.plot_phases(fig=None, axs=None)
     mp.plt.title(
         f"Adaptive solution segments = {mph.n_segments} poly={mph.poly_orders[0]}"
     )
     x, u, t, a = posth.get_data()
-    print(a)
+    t, r = mph.get_dynamics_residuals(solh, plot=True)
+    # print(a)
     mp.plt.show()
