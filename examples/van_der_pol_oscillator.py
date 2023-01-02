@@ -63,11 +63,11 @@ if __name__ == "__main__":
         f"non-adaptive solution segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
     )
 
-    mph = mp.mpopt_adaptive(ocp, 5, 5)
-    solh = mph.solve(max_iter=10, mpopt_options={"method": "control_slope"})
-    posth = mph.process_results(solh, plot=False)
-    fig, axs = posth.plot_phases(fig=None, axs=None)
-    mp.plt.title(
-        f"Adaptive solution segments = {mph.n_segments} poly={mph.poly_orders[0]}"
-    )
+    # mph = mp.mpopt_adaptive(ocp, 5, 5)
+    # solh = mph.solve(max_iter=10, mpopt_options={"method": "control_slope"})
+    # posth = mph.process_results(solh, plot=False)
+    # fig, axs = posth.plot_phases(fig=None, axs=None)
+    # mp.plt.title(
+    #     f"Adaptive solution segments = {mph.n_segments} poly={mph.poly_orders[0]}"
+    # )
     mp.plt.show()

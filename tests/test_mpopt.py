@@ -21,6 +21,8 @@
 import pytest
 
 from mpopt import mp
+import numpy as np
+import casadi as ca
 
 
 @pytest.mark.parametrize(
@@ -630,3 +632,631 @@ def test_mpopt_collocation_basis(test_collocation):
 
     assert tau0 == taus[0]
     assert tau1 == taus[-1]
+
+
+def test_mpopt_get_residual_grid_taus(test_mpo):
+    sol = test_mpo.solve()
+
+    taus = test_mpo.get_residual_grid_taus()
+
+    taus_1D = np.concatenate(taus)
+    assert taus_1D.min() >= test_mpo.tau0
+    assert taus_1D.max() <= test_mpo.tau1
+    assert len(taus) == test_mpo.n_segments
+
+    taus = test_mpo.get_residual_grid_taus(grid_type="fixed")
+    taus_1D = np.concatenate(taus)
+    assert taus_1D.min() >= test_mpo.tau0
+    assert taus_1D.max() <= test_mpo.tau1
+    assert len(taus) == test_mpo.n_segments
+    assert taus_1D.size <= test_mpo._MAX_GRID_POINTS
+
+    taus = test_mpo.get_residual_grid_taus(grid_type="mid-points")
+    taus_1D = np.concatenate(taus)
+    assert taus_1D.min() >= test_mpo.tau0
+    assert taus_1D.max() <= test_mpo.tau1
+    assert len(taus) == test_mpo.n_segments
+
+    taus = test_mpo.get_residual_grid_taus(grid_type="do-not-know-any")
+    assert taus == None
+
+
+def test_mpopt_compute_interpolation_taus_corresponding_to_original_grid():
+    nodes_req, seg_widths = np.array([0, 0.5, 1]), [1]
+    taus = mp.mpopt.compute_interpolation_taus_corresponding_to_original_grid(
+        nodes_req, seg_widths
+    )
+    assert (abs(taus - nodes_req[1:]) < 1e-6).all()
+
+    nodes_req, seg_widths = np.array([0, 0.5, 1]), [0.5, 0.5]
+    taus = mp.mpopt.compute_interpolation_taus_corresponding_to_original_grid(
+        nodes_req, seg_widths
+    )
+    assert (abs(taus[0] - 1) < 1e-6).all()
+    assert (abs(taus[1] - 1) < 1e-6).all()
+
+
+def test_mpopt_interpolate_single_phase(van_der_pol_mpo):
+    sol = van_der_pol_mpo.solve()
+
+    (Xi, Ui, ti, a, DXi, DUi, target_nodes) = van_der_pol_mpo.interpolate_single_phase(
+        sol,
+        phase=0,
+    )
+
+    assert Xi.size() == DXi.size()
+    assert Ui.size() == DUi.size()
+    assert a.size() == (van_der_pol_mpo._ocp.na, 1)
+    total_nodes = sum([len(node) for node in target_nodes])
+    assert ti.size() == (total_nodes, 1)
+
+    (Xi, Ui, ti, a, DXi, DUi, target_nodes) = van_der_pol_mpo.interpolate_single_phase(
+        sol,
+        phase=0,
+        target_nodes=np.array(
+            [
+                [van_der_pol_mpo.tau0, van_der_pol_mpo.tau1]
+                for i in range(van_der_pol_mpo.n_segments)
+            ]
+        ),
+    )
+
+    assert Xi.size() == DXi.size()
+    assert Ui.size() == DUi.size()
+    assert a.size() == (van_der_pol_mpo._ocp.na, 1)
+    total_nodes = sum([len(node) for node in target_nodes])
+    assert ti.size() == (total_nodes, 1)
+
+
+def test_mpopt_get_dynamics_residuals_single_phase(two_phase_schwartz_mpo):
+    mpo = two_phase_schwartz_mpo
+    sol = mpo.solve()
+    # Get the collocation points
+    taus = [mpo.collocation._taus_fn(deg)[1:-1] for deg in mpo.poly_orders]
+
+    # Estimate residual at collocation points in first phase
+    time, residual = mpo.get_dynamics_residuals_single_phase(sol, 0, taus)
+    max_residual = max([abs(np.array(err)).max() for err in residual])
+    assert max_residual < 1e-1
+
+    # Estimate residual at collocation points in second phase
+    time, residual = mpo.get_dynamics_residuals_single_phase(sol, 1, taus)
+    max_residual = max([abs(np.array(err)).max() for err in residual])
+    assert max_residual < 1
+
+
+def test_mpopt_get_dynamics_residuals(hyper_sensitive_mpo_h_adaptive):
+    mpo = hyper_sensitive_mpo_h_adaptive
+
+    sol = mpo.solve()
+    # Get the collocation points
+    taus = [mpo.collocation._taus_fn(deg)[1:-1] for deg in mpo.poly_orders]
+
+    # Estimate residual at collocation points in all phases
+    nodes = [taus for phase in range(mpo._ocp.n_phases)]
+    time0, residuals = mpo.get_dynamics_residuals(sol, nodes=nodes)
+    max_residual = max(
+        [
+            abs(np.array(err)).max()
+            for residual in residuals
+            for err in residual
+            if err is not None
+        ]
+    )
+    assert max_residual < 1e-1
+
+    time1, residuals = mpo.get_dynamics_residuals(sol, grid_type="fixed")
+    max_residual = max(
+        [
+            abs(np.array(err)).max()
+            for residual in residuals
+            for err in residual
+            if err is not None
+        ]
+    )
+    assert max_residual < 2
+
+    time2, residuals = mpo.get_dynamics_residuals(sol, grid_type="mid-points")
+    max_residual = max(
+        [
+            abs(np.array(err)).max()
+            for residual in residuals
+            for err in residual
+            if err is not None
+        ]
+    )
+    assert max_residual < 2
+
+    time3, residuals = mpo.get_dynamics_residuals(sol, grid_type="spectral")
+    max_residual = max(
+        [
+            abs(np.array(err)).max()
+            for residual in residuals
+            for err in residual
+            if err is not None
+        ]
+    )
+    assert max_residual < 2
+
+
+@pytest.fixture
+def int_1D_ocp():
+    ocp = mp.OCP(n_states=1, n_controls=1)
+
+    def dynamics(x, u, t):
+        return [u[0]]
+
+    def running_cost(x, u, t):
+        return u[0] * u[0]
+
+    def terminal_cost(xf, tf, x0, t0):
+        return 0.5 * xf[0] * xf[0]
+
+    ocp.dynamics[0] = dynamics
+    ocp.running_costs[0] = running_cost
+    ocp.terminal_costs[0] = terminal_cost
+
+    ocp.x00[0] = [0.2]
+    ocp.lbu[0] = -1.0
+    ocp.ubu[0] = 1.0
+    ocp.lbx[0] = [-1]
+    ocp.ubx[0] = [-1]
+    ocp.lbtf[0] = 1.0
+    ocp.ubtf[0] = 1.0
+
+    ocp.validate()
+
+    return ocp
+
+
+@pytest.fixture
+def int_1D_mpo(int_1D_ocp):
+    mpo = mp.mpopt(int_1D_ocp)
+    mpo.validate()
+
+    return mpo
+
+
+@pytest.fixture
+def mine_opt_ocp():
+    # https://en.wikipedia.org/wiki/Optimal_control
+    ocp = mp.OCP(n_states=1, n_controls=1)
+
+    p = 1  # Price
+
+    def dynamics(x, u, t):
+        return [-u[0]]
+
+    def running_cost(x, u, t):
+        return u[0] * u[0] / x[0] - p * u[0]
+
+    ocp.dynamics[0] = dynamics
+    ocp.running_costs[0] = running_cost
+
+    ocp.x00[0] = [1.0]
+    ocp.lbx[0] = 0
+    ocp.ubx[0] = 1
+    ocp.lbtf[0] = 1.0
+    ocp.ubtf[0] = 1.0
+
+    ocp.validate()
+
+    return ocp
+
+
+@pytest.fixture
+def mine_opt_mpo(mine_opt_ocp):
+    mpo = mp.mpopt(mine_opt_ocp, 2, 5)
+    mpo.validate()
+
+    return mpo
+
+
+#
+# def test_mpopt_get_second_derivative_single_phase(mine_opt_mpo):
+#     mpo = mine_opt_mpo
+#
+#     sol = mpo.solve()
+#     post = mpo.process_results(sol, plot=False)
+#     x, u, t, _ = post.get_data()
+#
+#     assert (abs(x - (4 - 1 * t + 1 * 1) ** 2 / (4 + 1 * 1) ** 2 * 1) < 1e-3).all()
+#
+#     # Get the collocation points
+#     taus = [mpo.collocation._taus_fn(deg)[1:-1] for deg in mpo.poly_orders]
+#
+#     # Estimate residual at collocation points in all phases
+#     # nodes = [taus for phase in range(mpo._ocp.n_phases)]
+#     time, ddx, ddu = mpo.get_second_derivative_single_phase(sol, nodes=taus)
+#
+#
+#     print(ddx, -(4 - time[0] + 1) / 25)
+#
+#     assert np.array(
+#         [
+#             (abs(ddx_seg + 2.0 * (4 - time[i] + 1) / 25) < 1e-3).all()
+#             for i, ddx_seg in enumerate(ddx)
+#         ]
+#     ).all()
+#     # assert np.array([(abs(ddx_seg - 2.0 / 25) < 1e-3).all() for ddx_seg in ddx]).all()
+
+
+@pytest.fixture
+def collocation_LGR_O1():
+    mp.CollocationRoots._TAU_MIN = -1
+    collocation = mp.Collocation([1], "LGR")
+
+    return collocation
+
+
+@pytest.fixture
+def collocation_LGL_O1():
+    mp.CollocationRoots._TAU_MIN = -1
+    collocation = mp.Collocation([1], "LGL")
+
+    return collocation
+
+
+@pytest.fixture
+def collocation_CGL_O1():
+    mp.CollocationRoots._TAU_MIN = -1
+    collocation = mp.Collocation([1], "CGL")
+
+    return collocation
+
+
+def test_LGR_O1(collocation_LGR_O1):
+    lgr = collocation_LGR_O1
+    assert (
+        np.abs(
+            lgr.roots[1]
+            - np.array([mp.CollocationRoots._TAU_MIN, mp.CollocationRoots._TAU_MAX])
+        )
+        < 1e-6
+    ).all()
+    h = lgr.roots[1][-1] - lgr.roots[1][0]
+
+    assert ca.Function("a1", [lgr.TVAR], [lgr.polys[1][0]])(lgr.roots[1][0]) == 1
+    assert ca.Function("a1", [lgr.TVAR], [lgr.polys[1][0]])(lgr.roots[1][-1]) == 0
+    assert ca.Function("a1", [lgr.TVAR], [lgr.polys[1][1]])(lgr.roots[1][0]) == 0
+    assert ca.Function("a1", [lgr.TVAR], [lgr.polys[1][1]])(lgr.roots[1][-1]) == 1
+
+    D = lgr.get_diff_matrix(1, order=1)
+    assert ((D - ca.DM([[-1 / h, 1 / h], [-1 / h, 1 / h]])).full() < 1e-6).all()
+
+    D = lgr.get_diff_matrix(1, order=2)
+    assert ((D - ca.DM.zeros(2, 2)).full() < 1e-6).all()
+
+
+def test_CGL_O1(collocation_CGL_O1):
+    lgr = collocation_CGL_O1
+    assert (
+        np.abs(
+            lgr.roots[1]
+            - np.array([mp.CollocationRoots._TAU_MIN, mp.CollocationRoots._TAU_MAX])
+        )
+        < 1e-6
+    ).all()
+    h = lgr.roots[1][-1] - lgr.roots[1][0]
+
+    assert ca.Function("a1", [lgr.TVAR], [lgr.polys[1][0]])(lgr.roots[1][0]) == 1
+    assert ca.Function("a1", [lgr.TVAR], [lgr.polys[1][0]])(lgr.roots[1][-1]) == 0
+    assert ca.Function("a1", [lgr.TVAR], [lgr.polys[1][1]])(lgr.roots[1][0]) == 0
+    assert ca.Function("a1", [lgr.TVAR], [lgr.polys[1][1]])(lgr.roots[1][-1]) == 1
+
+    D = lgr.get_diff_matrix(1, order=1)
+    assert ((D - ca.DM([[-1 / h, 1 / h], [-1 / h, 1 / h]])).full() < 1e-6).all()
+
+    D = lgr.get_diff_matrix(1, order=2)
+    assert ((D - ca.DM.zeros(2, 2)).full() < 1e-6).all()
+
+
+def test_LGL_O1(collocation_LGL_O1):
+    lgr = collocation_LGL_O1
+    assert (
+        np.abs(
+            lgr.roots[1]
+            - np.array([mp.CollocationRoots._TAU_MIN, mp.CollocationRoots._TAU_MAX])
+        )
+        < 1e-6
+    ).all()
+    h = lgr.roots[1][-1] - lgr.roots[1][0]
+
+    assert ca.Function("a1", [lgr.TVAR], [lgr.polys[1][0]])(lgr.roots[1][0]) == 1
+    assert ca.Function("a1", [lgr.TVAR], [lgr.polys[1][0]])(lgr.roots[1][-1]) == 0
+    assert ca.Function("a1", [lgr.TVAR], [lgr.polys[1][1]])(lgr.roots[1][0]) == 0
+    assert ca.Function("a1", [lgr.TVAR], [lgr.polys[1][1]])(lgr.roots[1][-1]) == 1
+
+    D = lgr.get_diff_matrix(1, order=1)
+    assert ((D - ca.DM([[-1 / h, 1 / h], [-1 / h, 1 / h]])).full() < 1e-6).all()
+
+    D = lgr.get_diff_matrix(1, order=2)
+    assert ((D - ca.DM.zeros(2, 2)).full() < 1e-6).all()
+
+
+@pytest.fixture
+def collocation_LGR():
+    mp.CollocationRoots._TAU_MIN = 0
+    collocation = mp.Collocation([1], "LGR")
+
+    return collocation
+
+
+@pytest.fixture
+def collocation_LGL():
+    mp.CollocationRoots._TAU_MIN = 0
+    collocation = mp.Collocation([1], "LGL")
+
+    return collocation
+
+
+@pytest.fixture
+def collocation_CGL():
+    mp.CollocationRoots._TAU_MIN = 0
+    collocation = mp.Collocation([1], "CGL")
+
+    return collocation
+
+
+def test_LGR(collocation_LGR):
+    lgr = collocation_LGR
+    assert (
+        np.abs(
+            lgr.roots[1]
+            - np.array([mp.CollocationRoots._TAU_MIN, mp.CollocationRoots._TAU_MAX])
+        )
+        < 1e-6
+    ).all()
+    h = lgr.roots[1][-1] - lgr.roots[1][0]
+
+    assert ca.Function("a1", [lgr.TVAR], [lgr.polys[1][0]])(lgr.roots[1][0]) == 1
+    assert ca.Function("a1", [lgr.TVAR], [lgr.polys[1][0]])(lgr.roots[1][-1]) == 0
+    assert ca.Function("a1", [lgr.TVAR], [lgr.polys[1][1]])(lgr.roots[1][0]) == 0
+    assert ca.Function("a1", [lgr.TVAR], [lgr.polys[1][1]])(lgr.roots[1][-1]) == 1
+
+    D = lgr.get_diff_matrix(1, order=1)
+    assert ((D - ca.DM([[-1 / h, 1 / h], [-1 / h, 1 / h]])).full() < 1e-6).all()
+
+    D = lgr.get_diff_matrix(1, order=2)
+    assert ((D - ca.DM.zeros(2, 2)).full() < 1e-6).all()
+
+
+def test_CGL(collocation_CGL):
+    lgr = collocation_CGL
+    assert (
+        np.abs(
+            lgr.roots[1]
+            - np.array([mp.CollocationRoots._TAU_MIN, mp.CollocationRoots._TAU_MAX])
+        )
+        < 1e-6
+    ).all()
+    h = lgr.roots[1][-1] - lgr.roots[1][0]
+
+    assert ca.Function("a1", [lgr.TVAR], [lgr.polys[1][0]])(lgr.roots[1][0]) == 1
+    assert ca.Function("a1", [lgr.TVAR], [lgr.polys[1][0]])(lgr.roots[1][-1]) == 0
+    assert ca.Function("a1", [lgr.TVAR], [lgr.polys[1][1]])(lgr.roots[1][0]) == 0
+    assert ca.Function("a1", [lgr.TVAR], [lgr.polys[1][1]])(lgr.roots[1][-1]) == 1
+
+    D = lgr.get_diff_matrix(1, order=1)
+    assert ((D - ca.DM([[-1 / h, 1 / h], [-1 / h, 1 / h]])).full() < 1e-6).all()
+
+    D = lgr.get_diff_matrix(1, order=2)
+    assert ((D - ca.DM.zeros(2, 2)).full() < 1e-6).all()
+
+
+def test_LGL(collocation_LGL):
+    lgr = collocation_LGL
+    assert (
+        np.abs(
+            lgr.roots[1]
+            - np.array([mp.CollocationRoots._TAU_MIN, mp.CollocationRoots._TAU_MAX])
+        )
+        < 1e-6
+    ).all()
+    h = lgr.roots[1][-1] - lgr.roots[1][0]
+
+    assert ca.Function("a1", [lgr.TVAR], [lgr.polys[1][0]])(lgr.roots[1][0]) == 1
+    assert ca.Function("a1", [lgr.TVAR], [lgr.polys[1][0]])(lgr.roots[1][-1]) == 0
+    assert ca.Function("a1", [lgr.TVAR], [lgr.polys[1][1]])(lgr.roots[1][0]) == 0
+    assert ca.Function("a1", [lgr.TVAR], [lgr.polys[1][1]])(lgr.roots[1][-1]) == 1
+
+    D = lgr.get_diff_matrix(1, order=1)
+    assert ((D - ca.DM([[-1 / h, 1 / h], [-1 / h, 1 / h]])).full() < 1e-6).all()
+
+    D = lgr.get_diff_matrix(1, order=2)
+    assert ((D - ca.DM.zeros(2, 2)).full() < 1e-6).all()
+
+
+@pytest.fixture
+def ocp_with_solution():
+    # Example 3.10 Nonlinear and Dynamic Optimization: From Theory to Practice. By B. Chachuat 2007 Automatic Control Laboratory, EPFL, Switzerland
+    # https://www.epfl.ch/labs/la/wp-content/uploads/2018/08/ic-32_lectures-17-28.pdf
+    ocp = mp.OCP(n_states=1, n_controls=1)
+
+    def dynamics(x, u, t):
+        return [2 * (1 - u[0])]
+
+    def running_cost(x, u, t):
+        return 0.5 * u[0] * u[0] - x[0]
+
+    ocp.dynamics[0] = dynamics
+    ocp.running_costs[0] = running_cost
+
+    ocp.x00[0] = [1.0]
+    # ocp.lbx[0] = 0
+    # ocp.ubx[0] = 1
+    ocp.lbtf[0] = 1.0
+    ocp.ubtf[0] = 1.0
+
+    ocp.validate()
+
+    return ocp
+
+
+@pytest.fixture
+def mpo_with_solution(ocp_with_solution):
+    mp.CollocationRoots._TAU_MIN = 0
+    mpo = mp.mpopt(ocp_with_solution, 1, 5)
+    mpo.validate()
+
+    return mpo
+
+
+def test_mpopt_ocp_solution_numpy_numerical(mpo_with_solution):
+    mpo = mpo_with_solution
+    mp.CollocationRoots._TAU_MIN = -1
+    mp.Collocation.D_MATRIX_METHOD = "numerical"
+
+    sol = mpo.solve()
+    post = mpo.process_results(sol, plot=False)
+    x, u, t, _ = post.get_data()
+    assert (abs(x - (-2 * t * t + 6 * t + 1)) < 1e-6).all()
+    assert (abs(u - 2 * (t - 1)) < 1e-6).all()
+
+
+def test_mpopt_get_second_derivative_single_phase(mpo_with_solution):
+    mpo = mpo_with_solution
+
+    sol = mpo.solve()
+    post = mpo.process_results(sol, plot=False)
+    x, u, t, _ = post.get_data()
+
+    assert (abs(x - (-2 * t * t + 6 * t + 1)) < 1e-3).all()
+
+    # Get the collocation points
+    taus = [mpo.collocation._taus_fn(deg)[1:-1] for deg in mpo.poly_orders]
+
+    # Estimate second derivative
+    # nodes = [taus for phase in range(mpo._ocp.n_phases)]
+    time, ddx, ddu = mpo.get_second_derivative_single_phase(sol, nodes=taus)
+
+    assert np.array(
+        [(abs(ddx_seg + 4) < 1e-3).all() for i, ddx_seg in enumerate(ddx)]
+    ).all()
+
+    assert np.array(
+        [(abs(ddu_seg) < 1e-3).all() for i, ddu_seg in enumerate(ddu)]
+    ).all()
+
+
+def test_mpopt_get_interpolated_time_grid():
+    t_orig = np.array([0, 0.33, 1])
+    taus = [t_orig]
+    poly_orders = [2]
+    tau0 = 0
+    tau1 = 1
+
+    time_grid = mp.mpopt.get_interpolated_time_grid(
+        t_orig, taus, poly_orders, tau0, tau1
+    ).full()
+
+    assert (abs(np.concatenate(time_grid) - t_orig) < 1e-6).all()
+
+    t_orig = np.array([0, 0.5, 1])
+    taus = [np.array([0, 1]), np.array([1])]
+    poly_orders = [1, 1]
+    tau0 = 0
+    tau1 = 1
+
+    time_grid = mp.mpopt.get_interpolated_time_grid(
+        t_orig, taus, poly_orders, tau0, tau1
+    ).full()
+
+    assert (abs(np.concatenate(time_grid) - t_orig) < 1e-6).all()
+
+    t_orig = np.array([0, 0.5, 1])
+    taus = [np.array([-1, 0, 1])]
+    poly_orders = [2]
+    tau0 = -1
+    tau1 = 1
+
+    time_grid = mp.mpopt.get_interpolated_time_grid(
+        t_orig, taus, poly_orders, tau0, tau1
+    ).full()
+
+    assert (abs(np.concatenate(time_grid) - t_orig) < 1e-6).all()
+
+
+def test_mpopt_compute_states_from_solution_dynamics(two_phase_schwartz_mpo):
+    mpo = two_phase_schwartz_mpo
+    sol = mpo.solve()
+    post = mpo.process_results(sol, plot=False)
+
+    # Get the collocation points
+    taus = [mpo.collocation._taus_fn(deg)[1:-1] for deg in mpo.poly_orders]
+
+    # Estimate residual at collocation points in first phase
+    x, u, t, _ = post.get_data(phases=[0])
+    states, controls, time, residuals = mpo.compute_states_from_solution_dynamics(
+        sol, 0, taus
+    )
+
+    assert (abs(time - np.concatenate(t[1:-1])) < 1e-3).all()
+    assert (abs(states - x[1:-1]) < 1e-3).all()
+
+    # Estimate residual at collocation points in second phase
+    x, u, t, _ = post.get_data(phases=[1])
+    states, controls, time, residuals = mpo.compute_states_from_solution_dynamics(
+        sol, 1, taus
+    )
+
+    assert (abs(time - np.concatenate(t[1:-1])) < 1e-3).all()
+    print(states, x[1:-1])
+    assert (abs(states - x[1:-1]) < 1e-3).all()
+
+
+def test_mpopt_compute_states_from_solution_dynamics_1P(mpo_with_solution):
+    mpo = mpo_with_solution
+
+    sol = mpo.solve()
+    post = mpo.process_results(sol, plot=False)
+    x, u, t, _ = post.get_data()
+
+    assert (abs(x - (-2 * t * t + 6 * t + 1)) < 1e-3).all()
+
+    # Get the collocation points
+    taus = [mpo.collocation._taus_fn(deg)[1:-1] for deg in mpo.poly_orders]
+
+    # Estimate residual at collocation points in first phase
+    states, controls, time, residuals = mpo.compute_states_from_solution_dynamics(
+        sol, 0, taus
+    )
+
+    assert (abs(time - np.concatenate(t[1:-1])) < 1e-3).all()
+    assert (abs(states - x[1:-1]) < 1e-3).all()
+
+    # assert np.array(
+    #     [(abs(ddx_seg + 4) < 1e-3).all() for i, ddx_seg in enumerate(ddx)]
+    # ).all()
+    #
+    # assert np.array(
+    #     [(abs(ddu_seg) < 1e-3).all() for i, ddu_seg in enumerate(ddu)]
+    # ).all()
+
+
+def test_mpopt_get_states_residuals(moon_lander_mpo):
+    mp.mpopt._MAX_GRID_POINTS = 5
+    mpo = moon_lander_mpo
+    sol = mpo.solve()
+    post = mpo.process_results(sol, plot=False)
+    # x, u, t, _ = post.get_data(interpolate=True)
+    ti, residual = mpo.get_states_residuals(
+        sol, grid_type="spectral", residual_type=None
+    )
+    for res_seg in residual[0]:
+        if res_seg is not None:
+            assert abs(np.array(res_seg)).max() < 1e-1
+
+    # fixed
+    ti, residual = mpo.get_states_residuals(sol, grid_type="fixed", residual_type=None)
+    for res_seg in residual[0]:
+        if res_seg is not None:
+            assert abs(np.array(res_seg)).max() < 1e-1
+
+    # mid-points
+    ti, residual = mpo.get_states_residuals(
+        sol, grid_type="mid-points", residual_type=None
+    )
+    for res_seg in residual[0]:
+        if res_seg is not None:
+            assert abs(np.array(res_seg)).max() < 1e-1
