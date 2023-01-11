@@ -1,5 +1,5 @@
 pip==21.1
-numpy==1.18.4
+numpy==1.22.0
 typing==3.7.4.1
 casadi==3.5.1
 pytest==5.4.1
