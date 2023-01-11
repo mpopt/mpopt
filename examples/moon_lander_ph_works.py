@@ -63,47 +63,21 @@ ocp.lbtf[0], ocp.ubtf[0] = 3, 5
 ocp.validate()
 
 if __name__ == "__main__":
-    mpo = mp.mpopt(ocp, 5, 4)
+    import numpy as np
+
+    # mp.post_process._INTERPOLATION_NODES_PER_SEG = 5
+    mp.mpopt._MAX_GRID_POINTS = 5
+
+    mpo = mp.mpopt(ocp, 20, 3)
     sol = mpo.solve()
     post = mpo.process_results(sol, plot=True)
-    mp.plt.title(
-        f"non-adaptive solution segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
+    x, u, t, _ = post.get_data(interpolate=True)
+
+    ti, residual = mpo.get_states_residuals(
+        sol, grid_type="spectral", residual_type="relative", plot=True
     )
 
-    mpo = mp.mpopt_h_adaptive(ocp, 10, 4)
-    sol = mpo.solve(
-        max_iter=3, mpopt_options={"method": "residual", "sub_method": "merge_split"}
+    ti, residual = mpo.get_dynamics_residuals(
+        sol, grid_type="spectral", residual_type="relative", plot=True
     )
-    post = mpo.process_results(sol, plot=True)
-    mp.plt.title(
-        f"Adaptive solution: merge_split : segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
-    )
-
-    mpo = mp.mpopt_h_adaptive(ocp, 10, 4)
-    sol = mpo.solve(
-        max_iter=2, mpopt_options={"method": "residual", "sub_method": "equal_area"}
-    )
-    post = mpo.process_results(sol, plot=True)
-    mp.plt.title(
-        f"Adaptive solution: equal_residual : segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
-    )
-
-    mpo = mp.mpopt_h_adaptive(ocp, 5, 4)
-    sol = mpo.solve(
-        max_iter=10, mpopt_options={"method": "control_slope", "sub_method": ""}
-    )
-    post = mpo.process_results(sol, plot=True)
-    mp.plt.title(
-        f"Adaptive solution: Control slope : segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
-    )
-
-    mpo = mp.mpopt_adaptive(ocp, 3, 2)
-    mpo.lbh[0] = 1e-6
-    mpo.mid_residuals = True
-    sol = mpo.solve()
-    post = mpo.process_results(sol, plot=True)
-    mp.plt.title(
-        f"Adaptive solution: Direct opt. : segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
-    )
-
     mp.plt.show()

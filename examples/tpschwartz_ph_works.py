@@ -76,22 +76,27 @@ if __name__ == "__main__":
     mp.plt.title(
         f"non-adaptive solution using LGR scheme & segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
     )
-    t, r = mpo.get_dynamics_residuals(lgr.solution, plot=False)
-    r_lgr, t_lgr = mp.post_process.sort_residual_data(t, r, phases=range(ocp.n_phases))
+    t, r = mpo.get_states_residuals(lgr.solution, plot=True)
+    t, r = mpo.get_dynamics_residuals(lgr.solution, plot=True)
+    mp.plt.show()
+    # r_lgr, t_lgr = mp.post_process.sort_residual_data(t, r, phases=range(ocp.n_phases))
 
     mpo, lgl = mp.solve(ocp, seg, p, "LGL", False)
     mp.plt.title(
         f"non-adaptive solution using LGL scheme & segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
     )
-    t, r = mpo.get_dynamics_residuals(lgl.solution, plot=False)
-    r_lgl, t_lgl = mp.post_process.sort_residual_data(t, r, phases=range(ocp.n_phases))
+    t, r = mpo.get_states_residuals(lgl.solution, plot=True)
+    t, r = mpo.get_dynamics_residuals(lgl.solution, plot=True)
+    mp.plt.show()  # r_lgl, t_lgl = mp.post_process.sort_residual_data(t, r, phases=range(ocp.n_phases))
 
     mpo, cgl = mp.solve(ocp, seg, p, "CGL", False)
     mp.plt.title(
         f"non-adaptive solution using CGL scheme & segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
     )
-    t, r = mpo.get_dynamics_residuals(cgl.solution, plot=False)
-    r_cgl, t_cgl = mp.post_process.sort_residual_data(t, r, phases=range(ocp.n_phases))
+    t, r = mpo.get_states_residuals(cgl.solution, plot=True)
+    t, r = mpo.get_dynamics_residuals(cgl.solution, plot=True)
+    mp.plt.show()
+    # r_cgl, t_cgl = mp.post_process.sort_residual_data(t, r, phases=range(ocp.n_phases))
 
     # Adaptive solution
     # mp.mpopt._INTERPOLATION_NODES_PER_SEG = 100
@@ -106,18 +111,20 @@ if __name__ == "__main__":
     mp.plt.title(
         f"Adaptive solution segments = {mph.n_segments} poly={mph.poly_orders[0]}"
     )
-    t, r = mph.get_dynamics_residuals(solh, plot=False)
-    r_h, t_h = mp.post_process.sort_residual_data(t, r, phases=range(ocp.n_phases))
+    t, r = mpo.get_states_residuals(solh, plot=True)
+    t, r = mpo.get_dynamics_residuals(solh, plot=True)
+    mp.plt.show()
+    # r_h, t_h = mp.post_process.sort_residual_data(t, r, phases=range(ocp.n_phases))
 
     print(lgr.solution["f"], lgl.solution["f"], cgl.solution["f"])
     import numpy as np
 
-    print(t_h.size, np.sum(mpo.poly_orders))
-    mp.plt.figure()
-    mp.plt.plot(
-        # t_lgr, r_lgr, "g-", t_lgl, r_lgl, "b*-", t_cgl, r_cgl, "k--",
-        t_h,
-        r_h,
-        "r-+",
-    )
+    # print(t_h.size, np.sum(mpo.poly_orders))
+    # mp.plt.figure()
+    # mp.plt.plot(
+    #     # t_lgr, r_lgr, "g-", t_lgl, r_lgl, "b*-", t_cgl, r_cgl, "k--",
+    #     t_h,
+    #     r_h,
+    #     "r-+",
+    # )
     mp.plt.show()
