@@ -974,17 +974,20 @@ class mpopt:
                     ti[index],
                     a / self._ocp.scale_a,
                 )
+                f[i] = ca.DM(f[i])
                 t[i] = ti[index]
                 u_seg[i] = ui[index, :]
                 residual_seg[i] = np.concatenate(xi[index, :].full())
 
                 index += 1
+            if f:
+                f = np.array(f).reshape(len(f), f[0].size()[0])
             for i, tau in enumerate(taus):
                 quad_tau = self.collocation.quad_matrix_fn(
                     self.collocation, "c{}".format(seg), tau0=self.tau0, tau1=tau
                 )
                 xint_seg[i] = np.concatenate(xstart.full()) + np.concatenate(
-                    h_seg * (np.dot(quad_tau.T, (np.array(f) * self._ocp.scale_x)))
+                    h_seg * (np.dot(quad_tau.T, (f * self._ocp.scale_x)))
                 )
                 residual_seg[i] = residual_seg[i] - xint_seg[i]
 
@@ -992,7 +995,7 @@ class mpopt:
             if start == end:
                 continue
 
-            ti_phase[seg] = t
+            ti_phase[seg] = np.concatenate(np.array(t).reshape(len(t), 1))
             xint_phase[seg] = np.array(xint_seg)
             residual_phase[seg] = residual_seg
             u_phase[seg] = np.array(u_seg)
@@ -1369,14 +1372,19 @@ class mpopt:
                     ti[index],
                     a / self._ocp.scale_a,
                 )
+                f[i] = ca.DM(f[i])
                 t[i] = ti[index]
                 index += 1
+            if f:
+                f = np.array(f).reshape(len(f), f[0].size()[0])
             start, end = sum(n_taus[:seg]), sum(n_taus[: (seg + 1)])
             if start == end:
                 continue
             h_seg = (ti[-1] - ti[0]) / (self.tau1 - self.tau0) * seg_widths[seg]
-            F = h_seg * (np.array(f) * self._ocp.scale_x)  # numpy multiplication
-            residual_phase[seg] = Dxi[start:end, :] - F
+            F = h_seg.full().reshape(1) * (
+                f * self._ocp.scale_x
+            )  # numpy multiplication
+            residual_phase[seg] = Dxi[start:end, :].full().reshape(F.shape) - F
             dyn_phase[seg] = F
             ti_phase[seg] = t
 
@@ -2040,7 +2048,7 @@ class post_process:
 
             r = np.concatenate(r)
 
-        t = np.concatenate(t)
+        t = np.concatenate(np.concatenate(t))
         r = r.reshape(t.shape[0], 1)
         return (r, t)
 
@@ -2062,6 +2070,8 @@ class post_process:
             fig, axs = plt.subplots(1, 1)
 
         r, t = self.sort_residual_data(time, residuals, phases=phases)
+        print(t.shape, r.shape, time[0])
+
         self.plot_curve(
             axs,
             r,
@@ -2313,7 +2323,7 @@ class mpopt_h_adaptive(mpopt):
         for phase in range(self._ocp.n_phases):
             max_residual = max(
                 [
-                    abs(np.array(err)).max() if err != None else 0
+                    abs(np.array(err)).max() if err is not None else 0
                     for err in residuals[phase]
                 ]
             )
@@ -2358,7 +2368,8 @@ class mpopt_h_adaptive(mpopt):
         """
         if method == "merge_split":
             max_residuals = [
-                np.abs(np.array(err)).max() if err != None else 0 for err in residuals
+                np.abs(np.array(err)).max() if err is not None else 0
+                for err in residuals
             ]
 
             return self.merge_split_segments_based_on_residuals(
@@ -2367,7 +2378,7 @@ class mpopt_h_adaptive(mpopt):
         elif method == "equal_area":
             residual_1D = np.concatenate(
                 [
-                    np.linalg.norm(np.array(err), 2, axis=1) if err != None else [0]
+                    np.linalg.norm(np.array(err), 2, axis=1) if err is not None else [0]
                     for err in residuals
                 ]
             )
@@ -2490,7 +2501,7 @@ class mpopt_h_adaptive(mpopt):
         for phase in range(self._ocp.n_phases):
             max_residual = max(
                 [
-                    np.abs(np.array(err)).max() if err != None else 0
+                    np.abs(np.array(err)).max() if err is not None else 0
                     for err in residuals[phase]
                 ]
             )

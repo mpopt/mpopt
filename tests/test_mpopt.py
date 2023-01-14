@@ -1191,7 +1191,8 @@ def test_mpopt_compute_states_from_solution_dynamics(two_phase_schwartz_mpo):
         sol, 0, taus
     )
 
-    assert (abs(time - np.concatenate(t[1:-1])) < 1e-3).all()
+    print(time[0], np.concatenate(t))
+    assert (abs(time[0] - np.concatenate(t[1:-1])) < 1e-3).all()
     assert (abs(states - x[1:-1]) < 1e-3).all()
 
     # Estimate residual at collocation points in second phase
@@ -1200,7 +1201,7 @@ def test_mpopt_compute_states_from_solution_dynamics(two_phase_schwartz_mpo):
         sol, 1, taus
     )
 
-    assert (abs(time - np.concatenate(t[1:-1])) < 1e-3).all()
+    assert (abs(time[0] - np.concatenate(t[1:-1])) < 1e-3).all()
     print(states, x[1:-1])
     assert (abs(states - x[1:-1]) < 1e-3).all()
 
@@ -1222,7 +1223,7 @@ def test_mpopt_compute_states_from_solution_dynamics_1P(mpo_with_solution):
         sol, 0, taus
     )
 
-    assert (abs(time - np.concatenate(t[1:-1])) < 1e-3).all()
+    assert (abs(time[0] - np.concatenate(t[1:-1])) < 1e-3).all()
     assert (abs(states - x[1:-1]) < 1e-3).all()
 
     # assert np.array(
