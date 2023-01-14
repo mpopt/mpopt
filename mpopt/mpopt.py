@@ -2187,6 +2187,7 @@ class mpopt_h_adaptive(mpopt):
             mpopt_options["sub_method"] = self._DEFAULT_SUB_METHOD
 
         self.iter_count, self.iter_info = 0, dict()
+        sw_old = []
         for iter in range(max_iter):
             # By default, these paramers are of equal segment width
             self._nlp_sw_params, max_error = self.get_segment_width_parameters(
@@ -4132,6 +4133,8 @@ class mpopt_ph_adaptive(mpopt):
         if grid_type is None:
             grid_type = self.grid_type[0]
         # ph-Adaptive algorithm (http://dx.doi.org/10.1016/j.jfranklin.2015.05.028)
+        nlp_sw_params = []  # Initialize
+        poly_orders = []
         for iter_no in range(max_iter):
             if iter_no > 0:
                 # Update Mesh for the next iteration
