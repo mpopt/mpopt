@@ -17,4 +17,4 @@ mp.plt.rc("ytick", labelsize=SMALL_SIZE)  # fontsize of the tick labels
 mp.plt.rc("legend", fontsize=MEDIUM_SIZE)  # legend fontsize
 # mp.plt.tight_layout()
 
-mp.plt.savefig(f"plots/vdp_lgr_s{seg}p{p}.eps")
+# mp.plt.savefig(f"plots/vdp_lgr_s{seg}p{p}.eps")
