@@ -72,18 +72,23 @@ class mpopt:
             [poly_orders] * n_segments if isinstance(poly_orders, int) else poly_orders
         )
 
+        self._ocp = copy.deepcopy(problem)
+        self.colloc_scheme = scheme  # available LGR, LGL, CGL
+        self.reset_mpopt()
+
+    def reset_mpopt(self):
         # Assert that poly_orders is defined for all the segments
         assert len(self.poly_orders) == self.n_segments
         self._Npoints = sum(self.poly_orders) + 1
 
-        self._ocp = copy.deepcopy(problem)
-
         # Set the status of internal function evaluations
-        self.colloc_scheme = scheme  # available LGR, LGL, CGL
         self._collocation_approximation_computed = False
         self._variables_created = False
         self._nlpsolver_initialized = False
         self.grid_type = [self._GRID_TYPE for _ in range(self._ocp.n_phases)]
+        self.max_grid_points = [
+            self._MAX_GRID_POINTS for _ in range(self._ocp.n_phases)
+        ]
 
     def compute_numerical_approximation(self, scheme: str = None) -> None:
         if scheme is None:
@@ -908,7 +913,9 @@ class mpopt:
         """
         pass
 
-    def compute_states_from_solution_dynamics(self, solution, phase=0, nodes=None):
+    def compute_states_from_solution_dynamics(
+        self, solution, phase: int = 0, nodes=None
+    ):
         """
         solution : NLP solution
         """
@@ -925,7 +932,7 @@ class mpopt:
 
         if nodes is None:
             target_nodes = self.get_residual_grid_taus(
-                phase=phase, grid_type="mid-points"
+                phase=phase, grid_type=self.grid_type[phase]
             )
         else:
             target_nodes = nodes
@@ -1023,8 +1030,8 @@ class mpopt:
                 target_nodes = nodes[phase]
 
             (
-                _,
-                _,
+                x_phase,
+                u_phase,
                 ti[phase],
                 residuals[phase],
             ) = self.compute_states_from_solution_dynamics(
@@ -1035,7 +1042,7 @@ class mpopt:
             if residual_type == "relative":
                 # print(residuals[phase])  # = np.array(residuals[phase])
                 max_val = np.zeros(self._ocp.nx)
-                for seg, res_seg in enumerate(residuals[phase]):
+                for seg, res_seg in enumerate(x_phase):
                     if res_seg is not None:
                         seg_max = abs(np.array(res_seg)).max(axis=0)
                         for id, val in enumerate(max_val):
@@ -1047,7 +1054,7 @@ class mpopt:
                 for seg, res_seg in enumerate(residuals[phase]):
                     if res_seg is not None:
                         residuals[phase][seg] = np.array(res_seg) / max_val
-                        assert abs(residuals[phase][seg]).max() <= 1
+                        # assert abs(residuals[phase][seg]).max() <= 1
 
         if plot:
             fig, axs = post_process.plot_residuals(
@@ -1085,14 +1092,16 @@ class mpopt:
             )
             taus_on_original_grid[0] = taus_on_original_grid[0][:-1]
         elif grid_type == "mid-points":
-            mid_points = lambda x: [(x[i] + x[i + 1]) / 2.0 for i in range(len(x) - 1)]
+            mid_points = lambda x: np.array(
+                [(x[i] + x[i + 1]) / 2.0 for i in range(len(x) - 1)]
+            )
             taus_on_original_grid = np.array(
                 [mid_points(self.collocation._taus_fn(deg)) for deg in self.poly_orders]
             )
         elif grid_type == "spectral":
             taus_on_original_grid = np.array(
                 [
-                    self.collocation._taus_fn(self._MAX_GRID_POINTS + 2)[1:-1]
+                    np.array(self.collocation._taus_fn(self._MAX_GRID_POINTS + 2)[1:-1])
                     for deg in self.poly_orders
                 ]
             )
@@ -1134,6 +1143,7 @@ class mpopt:
         self,
         solution,
         grid_type="spectral",
+        nodes=None,
         plot=False,
         fig=None,
         axs=None,
@@ -1156,14 +1166,17 @@ class mpopt:
             [None] * self._ocp.n_phases,
         )
         for phase in range(self._ocp.n_phases):
-            target_nodes = self.get_residual_grid_taus(phase, grid_type=grid_type)
+            if nodes is None:
+                target_nodes = self.get_residual_grid_taus(phase, grid_type=grid_type)
+            else:
+                target_nodes = nodes[phase]
 
             (
                 ti[phase],
                 DDx[phase],
                 DDu[phase],
-            ) = self.get_second_derivative_single_phase(
-                solution, phase, target_nodes=target_nodes
+            ) = self.get_state_second_derivative_single_phase(
+                solution, phase, nodes=target_nodes
             )
 
         if plot:
@@ -1173,11 +1186,12 @@ class mpopt:
 
         return ti, DDx, DDu
 
-    def get_second_derivative_single_phase(
+    def get_state_second_derivative_single_phase(
         self,
         solution,
         phase: int = 0,
         nodes: List = None,
+        grid_type: str = None,
         residual_type: str = None,
     ):
         """Compute residual of the system dynamics at given taus (Normalized [0, 1]) by interpolating the
@@ -1197,8 +1211,10 @@ class mpopt:
         t0, tf = np.concatenate(t0.full()), np.concatenate(tf.full())
 
         if nodes is None:
+            if grid_type is None:
+                grid_type = self.grid_type[phase]
             target_nodes = self.get_residual_grid_taus(
-                phase=phase, grid_type="spectral"
+                phase=phase, grid_type=self.grid_type[phase]
             )
         else:
             target_nodes = nodes
@@ -1249,7 +1265,7 @@ class mpopt:
         self,
         solution,
         nodes=None,
-        grid_type="spectral",
+        grid_type=None,
         residual_type=None,
         plot=False,
         fig=None,
@@ -1274,11 +1290,17 @@ class mpopt:
         residuals, ti = [None] * self._ocp.n_phases, [None] * self._ocp.n_phases
         for phase in range(self._ocp.n_phases):
             if nodes is None:
+                if grid_type is None:
+                    grid_type = self.grid_type[phase]
                 target_nodes = self.get_residual_grid_taus(phase, grid_type=grid_type)
             else:
                 target_nodes = nodes[phase]
 
-            ti[phase], residuals[phase] = self.get_dynamics_residuals_single_phase(
+            (
+                ti[phase],
+                residuals[phase],
+                dyn_phase,
+            ) = self.get_dynamics_residuals_single_phase(
                 solution, phase, target_nodes=target_nodes
             )
 
@@ -1286,7 +1308,7 @@ class mpopt:
             if residual_type == "relative":
                 # print(residuals[phase])  # = np.array(residuals[phase])
                 max_val = np.zeros(self._ocp.nx)
-                for seg, res_seg in enumerate(residuals[phase]):
+                for seg, res_seg in enumerate(dyn_phase):
                     if res_seg is not None:
                         seg_max = abs(np.array(res_seg)).max(axis=0)
                         for id, val in enumerate(max_val):
@@ -1333,6 +1355,7 @@ class mpopt:
         index = 0
         n_taus = [len(taus) for taus in taus_grid]
         residual_phase = [None] * self.n_segments
+        dyn_phase = [None] * self.n_segments
         dynamics = self._ocp.get_dynamics(phase)
         ti_phase = [None] * self.n_segments
         for seg in range(self.n_segments):
@@ -1352,17 +1375,19 @@ class mpopt:
             if start == end:
                 continue
             h_seg = (ti[-1] - ti[0]) / (self.tau1 - self.tau0) * seg_widths[seg]
-            F = np.array(f) * self._ocp.scale_x  # numpy multiplication
-            residual_phase[seg] = Dxi[start:end, :] - h_seg * F
+            F = h_seg * (np.array(f) * self._ocp.scale_x)  # numpy multiplication
+            residual_phase[seg] = Dxi[start:end, :] - F
+            dyn_phase[seg] = F
             ti_phase[seg] = t
 
-        return ti_phase, residual_phase
+        return ti_phase, residual_phase, dyn_phase
 
     def interpolate_single_phase(
         self,
         solution,
         phase: int = 0,
         target_nodes: np.ndarray = None,
+        grid_type=None,
         options: Set = {},
     ):
         """Interpolate the solution at given taus
@@ -1383,14 +1408,12 @@ class mpopt:
         t0, tf = np.concatenate(t0.full()), np.concatenate(tf.full())
 
         if target_nodes is None:
-            target_nodes = self.get_residual_grid_taus(
-                phase=phase, grid_type="mid-points"
-            )
-            ti = ca.vertcat(*[(t[i] + t[i + 1]) / 2.0 for i in range(t.shape[0] - 1)])
-        else:
-            ti = self.get_interpolated_time_grid(
-                t, target_nodes, self.poly_orders, self.tau0, self.tau1
-            )
+            if grid_type is None:
+                grid_type = self.grid_type[phase]
+            target_nodes = self.get_residual_grid_taus(phase=phase, grid_type=grid_type)
+        ti = self.get_interpolated_time_grid(
+            t, target_nodes, self.poly_orders, self.tau0, self.tau1
+        )
 
         comp_interpolation_I = self.collocation.get_composite_interpolation_matrix(
             target_nodes, self.poly_orders
@@ -3779,7 +3802,7 @@ class Collocation:
             :D: Composite differentiation matrix
 
         """
-        D = self.get_interpolation_Dmatrices_at(taus, poly_orders, order=order)
+        D = self.get_interpolation_Dmatrices_at(taus, keys=poly_orders, order=order)
         if poly_orders is None:
             poly_orders = self.poly_orders
         n_nodes = sum(poly_orders) + 1
@@ -3967,131 +3990,288 @@ def solve(
     return (mpo, post)
 
 
-def solve_ph_adaptive_grid(
-    ocp,
-    max_iter=1,
-    max_err=1e-4,
-    Nmin=3,
-    Nmax=16,
-    scheme="LGR",
-    plot=True,
-    solve_dict: Dict = dict(),
-):
-    """Solve OCP by creating optimizer and process results
-
-    args:
-        ocp: well defined OCP object
-        Nmin, Nmax : Minimum, Maximum collocation points in a segment
-        scheme : Collocation scheme (LGR, LGL, CGL)
-        plot : True/False (Plot states and controls)
-
-    returns:
-        :mpo: optimizer
-        :post: Post processor object
-    """
+def get_segment_boundaries():
+    """"""
     pass
 
 
-def solve_ph_adaptive_grid(
-    ocp,
-    max_iter=1,
-    max_err=1e-4,
-    Nmin=3,
-    Nmax=16,
-    scheme="LGR",
-    plot=True,
-    solve_dict: Dict = dict(),
-):
-    """Solve OCP by creating optimizer and process results
+class mpopt_ph_adaptive(mpopt):
+    """Multi-stage Optimal control problem (OCP) solver which implements iterative
+    procedure to refine the segment width and polynomial order in each phase adaptively
 
-    args:
-        ocp: well defined OCP object
-        Nmin, Nmax : Minimum, Maximum collocation points in a segment
-        scheme : Collocation scheme (LGR, LGL, CGL)
-        plot : True/False (Plot states and controls)
-
-    returns:
-        :mpo: optimizer
-        :post: Post processor object
+    Examples :
+        >>> # Moon lander problem
+        >>> from mpopt import mp
+        >>> ocp = mp.OCP(n_states=2, n_controls=1, n_params=0, n_phases=1)
+        >>> ocp.dynamics[0] = lambda x, u, t, a: [x[1], u[0] - 1.5]
+        >>> ocp.running_costs[0] = lambda x, u, t, a: u[0]
+        >>> ocp.terminal_constraints[0] = lambda xf, tf, x0, t0, a: [xf[0], xf[1]]
+        >>> ocp.x00[0] = [10, -2]
+        >>> ocp.lbu[0] = 0; ocp.ubu[0] = 3
+        >>> ocp.lbtf[0] = 3; ocp.ubtf[0] = 5
+        >>> opt = mp.mpopt_ph_adaptive(ocp, n_segments=3, poly_orders=[2]*3)
+        >>> solution = opt.solve()
+        >>> post = opt.process_results(solution, plot=True)
     """
-    n_segments = 1
-    poly_orders = np.array([Nmin] * n_segments)
-    mpo0 = mpopt(ocp, n_segments=n_segments, poly_orders=poly_orders, scheme=scheme)
-    solution0 = mpo0.solve(**solve_dict)
-    t0, ddx0, ddu0 = mpo0.get_state_second_derivative(
-        solution0, grid_type="fixed", plot=False
-    )
-    nlp_sw_params_new = mpo0._nlp_sw_params
-    # print(t0.shape, ddx0.shape)
-    # wait = input("X:")
 
-    poly_orders = poly_orders + 1
-    for iter_no in np.arange(0, max_iter, 1):
-        mpo = mpopt(ocp, n_segments=n_segments, poly_orders=poly_orders, scheme=scheme)
-        solve_dict["nlp_sw_params"] = nlp_sw_params_new
-        solution = mpo.solve(**solve_dict)
-        t, ddx, ddu = mpo.get_state_second_derivative(
-            solution, grid_type="fixed", plot=False
+    _SEG_WIDTH_MIN = 1e-5
+    _SEG_WIDTH_MAX = 1
+
+    _TOL_SEG_WIDTH_CHANGE = 0.05  # < 5% change in width fraction (Converged)
+    _TOL_RESIDUAL = 1e-2
+
+    def __init__(
+        self: "mpopt_ph_adaptive",
+        problem: "OCP",
+        n_segments: int = 1,
+        poly_orders: List[int] = [9],
+        scheme: str = "LGR",
+        grid_type: str = "spectral",
+        max_residual: float = 1e-4,
+        poly_order_min: int = 3,
+        poly_order_max: int = 16,
+        seg_min: int = 1,
+        seg_max: int = 20,
+        n_grid_points: int = 20,
+        non_smooth_threshold: float = 1.05,
+    ):
+        """Initialize the optimizer
+        args:
+            n_segments: number of segments in each phase
+            poly_orders: degree of the polynomial in each segment
+            problem: instance of the OCP class
+        """
+        super().__init__(
+            problem=problem,
+            n_segments=n_segments,
+            poly_orders=poly_orders,
+            scheme=scheme,
         )
 
-        # Refine poly order first
-        norm_residual = lambda residual: np.array(
-            [np.linalg.norm(err, 2) for err in residual]
-        )
+        # Check polynomial degree compatiability with default options
+        if min(self.poly_orders) < poly_order_min:
+            poly_order_min = min(self.poly_orders)
+        if max(self.poly_orders) > poly_order_max:
+            poly_order_max = max(self.poly_orders)
 
-        for phase in range(ocp.n_phases):
-            nlp_sw_params = mpo._nlp_sw_params
-            nlp_sw_params_new = []
-            poly_orders_new = []
+        if n_segments < seg_min:
+            seg_min = n_segments
+        if n_segments > seg_max:
+            seg_max = n_segments
 
-            t0_phase = np.concatenate(t0[phase])[:, 0]
-            ddx0_phase = np.concatenate(ddx0[phase])[:, :, 0]
-            ddu0_phase = np.concatenate(ddu0[phase])[:, :, 0]
+        self.poly_order_min = poly_order_min
+        self.poly_order_max = poly_order_max
+        self._MAX_GRID_POINTS = n_grid_points
+        self._TOL_RESIDUAL = max_residual
+        self._GRID_TYPE = grid_type
+        self.max_residual = max_residual
+        self.n_grid_points = n_grid_points
+        self.max_segments = seg_max
+        self.min_segments = seg_min
+        self.non_smooth_threshold = non_smooth_threshold
 
-            t_phase = t[phase]
-            r_phase = ddx[phase]
-            u_phase = ddu[phase]
-            # print(t[0][0], r_phase[0].shape)
-            r_phase0 = ddx0_phase
-            u_phase0 = ddu0_phase
-            Rij = [None] * n_segments
-            for seg in range(n_segments):
-                rj = [None] * (mpo._ocp.nx + mpo._ocp.nu)
-                # print(seg, t_phase[seg], r_phase[seg].shape)
-                for i_nx in range(mpo._ocp.nx):
-                    ddx_max_i = r_phase[seg][:, i_nx].max()
-                    t_ddx_max_i = t_phase[seg][r_phase[seg][:, i_nx] == ddx_max_i][0]
-                    ddx0_max_i = np.interp(t_ddx_max_i, t0_phase, r_phase0[:, i_nx])
-                    rj[i_nx] = ddx_max_i / ddx0_max_i
-                    # print(seg, i_nx, ddx_max_i, ddx0_max_i, t_ddx_max_i, rj)
+        # Segment width bounds : default values
+        self.lbh = [self._SEG_WIDTH_MIN for _ in range(self._ocp.n_phases)]
+        self.ubh = [self._SEG_WIDTH_MAX for _ in range(self._ocp.n_phases)]
+        self.tol_residual = [self._TOL_RESIDUAL for _ in range(self._ocp.n_phases)]
+        self.fig, self.axs = None, None
+        self.plot_residual_evolution = False
+        self.reset_mpopt()
 
-                for i_nu in range(mpo._ocp.nu):
-                    ddu_max_i = u_phase[seg][:, i_nu].max()
-                    t_ddu_max_i = t_phase[seg][u_phase[seg][:, i_nu] == ddu_max_i][0]
-                    ddu0_max_i = np.interp(t_ddu_max_i, t0_phase, u_phase0[:, i_nu])
-                    rj[mpo._ocp.nx + i_nu] = ddu_max_i / ddu0_max_i
-                    # print(
-                    #     seg, mpo._ocp.nx + i_nu, ddu_max_i, ddu0_max_i, t_ddu_max_i, rj
-                    # )
+    @staticmethod
+    def get_abs_max_residual(residual):
+        """
+        Compute the segment wise maximum residual in each phase for each state
 
-                # print(phase, seg, poly_orders[seg], rel_err)
-                if (np.array(np.abs(rj)) > 1.2).any():
-                    nlp_sw_params_new.extend([nlp_sw_params[seg] / 2] * 2)
-                    poly_orders_new.extend([poly_orders[seg] + 0] * 2)
-                else:
-                    nlp_sw_params_new.extend([nlp_sw_params[seg]])
-                    poly_orders_new.extend([poly_orders[seg]])
-                Rij[seg] = np.array(rj)
+        args:
+            :residual: Values of residuals in a list of lists (Phase -> segments)
 
-        n_segments = len(nlp_sw_params_new)
-        poly_orders = poly_orders_new
+        returns:
+            max_phases:
+                Values of indices of maximum residuals in each segment of the phase for all phases
+        """
+        max_r_phases = [None] * len(residual)
+        for i_phase, r_phase in enumerate(residual):
+            max_r_phase = [None] * len(r_phase)
+            for i_seg, r_seg in enumerate(r_phase):
+                r_max_seg = abs(np.array(r_seg)).max(axis=0)
+                i_max_seg = abs(np.array(r_seg)).argmax(axis=0)
+                max_r_phase[i_seg] = [i_max_seg, r_max_seg]
+            max_r_phases[i_phase] = max_r_phase
 
-        t0 = copy.deepcopy(t)
-        ddx0 = copy.deepcopy(ddx)
-        ddu0 = copy.deepcopy(ddu)
+        return max_r_phases
 
-        print(iter_no, n_segments, nlp_sw_params_new, poly_orders)
+    def solve_ph(self, max_iter=1, grid_type=None, solve_dict: Dict = {}):
+        """Solve OCP using adaptive ph method
 
-    post = mpo.process_results(solution, plot=True)
+        args: Options for the mpopt solver
 
-    return mpo, post
+        returns:
+            :Solution: Solution for the ocp
+
+        """
+        # Custom definitions
+        def limit_poly_orders(poly_orders):
+            # Saturate poly orders between user specified limits
+            return [
+                min(max(self.poly_order_min, p), self.poly_order_max)
+                for p in poly_orders
+            ]
+
+        if grid_type is None:
+            grid_type = self.grid_type[0]
+        # ph-Adaptive algorithm (http://dx.doi.org/10.1016/j.jfranklin.2015.05.028)
+        for iter_no in range(max_iter):
+            if iter_no > 0:
+                # Update Mesh for the next iteration
+                self._nlp_sw_params = np.hstack(nlp_sw_params)
+                solve_dict["nlp_sw_params"] = self._nlp_sw_params
+                self.poly_orders = np.hstack(poly_orders)
+                self.n_segments = self._nlp_sw_params.shape[0]
+
+            # ************************** Sparse solution ********************
+            # Step 1 : Solve the problem on initial mesh (Sparse for reference)
+
+            self.reset_mpopt()
+            solution = self.solve(reinitialize_nlp=True, **solve_dict)
+            # Mesh points in time in each segment of a given phase
+            # taus = np.array([self.collocation._taus_fn(deg) for deg in self.poly_orders])
+            # taus = [taus for phase in range(self._ocp.n_phases)]
+
+            # Step 2 : Compute the maximum residual in the states using gaussian quadrature of dynamics (Refer Anil V. Rao http://dx.doi.org/10.1016/j.jfranklin.2015.05.028)
+            time_r, residual_r = self.get_states_residuals(
+                solution, grid_type=grid_type, residual_type="relative", plot=False
+            )
+            max_residual = self.get_abs_max_residual(residual_r)
+
+            # Step-3: Check if the solution is acceptable, find segment with max residual
+            refine_phase = [False] * self._ocp.n_phases
+            abs_max_residual = 0
+
+            poly_orders = copy.deepcopy(self.poly_orders)
+            for i_phase, max_r_phase in enumerate(max_residual):
+                # Segment wise maximum value across all states
+                max_seg_residual = np.array(max_r_phase)[:, 1].max(axis=1)
+                if abs_max_residual < max_seg_residual.max():
+                    abs_max_residual = max_seg_residual.max()
+                status = max_seg_residual > self.max_residual
+                if status.any():
+                    # This phase needs refinement, increase the order of the polynomial by 3 for next iteration
+                    poly_orders = [
+                        self.poly_orders[i] + 3 * int(st) for i, st in enumerate(status)
+                    ]
+                    refine_phase[i_phase] = True
+
+            if not np.array(refine_phase).all():
+                return solution
+
+            # Compute reduction in mesh size
+            # Skipped for now ---- Yet to be implemented
+
+            # Compute nodes in next fine mesh (poly_orders + 3)
+            taus_new = np.array([self.collocation._taus_fn(deg) for deg in poly_orders])
+            taus_new = [taus_new for phase in range(self._ocp.n_phases)]
+
+            # Compute second derivative at nodes of next iteration
+            time_d, ddx, ddu = self.get_state_second_derivative(
+                solution, nodes=taus_new
+            )
+
+            # ************************** Refined solution *******************
+            print(
+                f"Iteration {iter_no} : max_residual, n_segments, poly_orders, seg_widths:- ({abs_max_residual}, {self.n_segments}, {self.poly_orders}, {self._nlp_sw_params})"
+            )
+
+            # Step-1: Solve the problem by increasing the order of polynomial by 3 in segments with high error
+            poly_orders_orig = copy.deepcopy(self.poly_orders)
+            self.poly_orders = limit_poly_orders(poly_orders)
+
+            # Grid M (Solution with fine mesh, same number segments as solution but with increased polynomial degree)
+            self.reset_mpopt()
+            solution_new = self.solve(reinitialize_nlp=True, **solve_dict)
+
+            # Step-2  : Compute the maximum residual in the states using gaussian quadrature of dynamics (Refer Anil V. Rao http://dx.doi.org/10.1016/j.jfranklin.2015.05.028)
+            time_r_new, residual_r_new = self.get_states_residuals(
+                solution_new,
+                grid_type=grid_type,
+                residual_type="relative",
+                plot=False,
+            )
+            max_residual_new = self.get_abs_max_residual(residual_r_new)
+
+            # Compute second derivate (state)
+            # taus_new = np.array(
+            #     [self.collocation._taus_fn(deg) for deg in self.poly_orders]
+            # )
+            # taus_new = [taus_new for phase in range(self._ocp.n_phases)]
+            time_d_new, ddx_new, ddu_new = self.get_state_second_derivative(
+                solution_new, nodes=taus_new
+            )
+
+            # Step-3: Check if the solution is acceptable, find segment with max residual
+            refine_phase = [False] * self._ocp.n_phases
+            dd_max_phase = [None] * (self._ocp.n_phases)
+            for i_phase, max_r_phase in enumerate(max_residual_new):
+                max_seg_residual = np.array(max_r_phase)[:, 1].max(axis=1)
+                status = max_seg_residual > self.max_residual
+                if status.any():
+                    # This phase needs refinement
+                    dd_max_phase[i_phase] = [
+                        np.array(
+                            [
+                                abs(ddx_new[i_phase][i_seg][:, i, 0])
+                                / abs(ddx[i_phase][i_seg][:, i, 0]).max()
+                                for i in range(self._ocp.nx)
+                            ]
+                        )
+                        for i_seg, st in enumerate(status)
+                    ]
+                    refine_phase[i_phase] = True
+
+            if not np.array(refine_phase).all():
+                return solution_new
+
+            abs_max_residual = 0
+            # Find non-smooth segments where residual is more than the required tolerence
+            for i_phase, max_r_phase in enumerate(max_residual_new):
+                poly_orders = []
+                nlp_sw_params = []
+                max_seg_residual = np.array(max_r_phase)[:, 1].max(axis=1)
+                if max_seg_residual.max() > abs_max_residual:
+                    abs_max_residual = max_seg_residual.max()
+                status = max_seg_residual > self.max_residual
+                for i_seg, st in enumerate(status):
+                    if (
+                        st
+                        and (
+                            dd_max_phase[i_phase][i_seg] > self.non_smooth_threshold
+                        ).any()
+                    ):
+                        # Split i_seg in additional segments based on desired residual
+                        new_segments = 2
+                        nlp_sw_params.append(
+                            [self._nlp_sw_params[i_seg] / new_segments] * new_segments
+                        )
+                        poly_orders.append([self.poly_orders[i_seg]] * new_segments)
+
+                        # max_residual_seg = residual_r[phase][seg].max()
+                        # max_residual_seg_sparse = residual_rs[phase][seg].max()
+                        # ratio_residual = max_residual_seg / max_residual_seg_sparse
+                        # ratio_nodes = poly_orders[seg] / self.poly_orders[seg]
+                        # q = np.ceil(
+                        #     5 / 2 + np.log(ratio_residual) / np.log(ratio_nodes)
+                        # )
+                        # ratio_residual_req = max_residual_seg / max_err
+                        # seg_width_new = 1 * pow(ratio_residual_req, 1.0 / q)
+                        # n_splits_max = np.ceil(
+                        #     np.log(ratio_residual_req, poly_orders[seg])
+                        # )
+                        # n_splits = min(np.ceil(1 / seg_width_new), n_splits_max)
+                        # seg_refine_phase[phase][seg] = n_splits
+                    else:
+                        # The solution is smooth and the residual is higher than the required tolerance.
+                        # Increase the order of polynomial
+                        poly_orders.append(self.poly_orders[i_seg])
+                        nlp_sw_params.append(self._nlp_sw_params[i_seg])
+
+        return solution_new

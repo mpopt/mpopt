@@ -441,7 +441,7 @@ def test_moon_lander_h_adaptive_solve(moon_lander_mpo_h_adaptive):
 
 
 def test_moon_lander_h_adaptive2_solve(moon_lander_mpo_h_adaptive):
-    moon_lander_mpo_h_adaptive.grid_type[0] = "mid_points"
+    moon_lander_mpo_h_adaptive.grid_type[0] = "mid-points"
     sol = moon_lander_mpo_h_adaptive.solve(
         max_iter=2, mpopt_options={"method": "residual", "sub_method": "equal_area"}
     )
@@ -715,12 +715,12 @@ def test_mpopt_get_dynamics_residuals_single_phase(two_phase_schwartz_mpo):
     taus = [mpo.collocation._taus_fn(deg)[1:-1] for deg in mpo.poly_orders]
 
     # Estimate residual at collocation points in first phase
-    time, residual = mpo.get_dynamics_residuals_single_phase(sol, 0, taus)
+    time, residual, _ = mpo.get_dynamics_residuals_single_phase(sol, 0, taus)
     max_residual = max([abs(np.array(err)).max() for err in residual])
     assert max_residual < 1e-1
 
     # Estimate residual at collocation points in second phase
-    time, residual = mpo.get_dynamics_residuals_single_phase(sol, 1, taus)
+    time, residual, _ = mpo.get_dynamics_residuals_single_phase(sol, 1, taus)
     max_residual = max([abs(np.array(err)).max() for err in residual])
     assert max_residual < 1
 
@@ -853,7 +853,7 @@ def mine_opt_mpo(mine_opt_ocp):
 
 
 #
-# def test_mpopt_get_second_derivative_single_phase(mine_opt_mpo):
+# def test_mpopt_get_state_second_derivative_single_phase(mine_opt_mpo):
 #     mpo = mine_opt_mpo
 #
 #     sol = mpo.solve()
@@ -867,7 +867,7 @@ def mine_opt_mpo(mine_opt_ocp):
 #
 #     # Estimate residual at collocation points in all phases
 #     # nodes = [taus for phase in range(mpo._ocp.n_phases)]
-#     time, ddx, ddu = mpo.get_second_derivative_single_phase(sol, nodes=taus)
+#     time, ddx, ddu = mpo.get_state_second_derivative_single_phase(sol, nodes=taus)
 #
 #
 #     print(ddx, -(4 - time[0] + 1) / 25)
@@ -1114,7 +1114,7 @@ def test_mpopt_ocp_solution_numpy_numerical(mpo_with_solution):
     assert (abs(u - 2 * (t - 1)) < 1e-6).all()
 
 
-def test_mpopt_get_second_derivative_single_phase(mpo_with_solution):
+def test_mpopt_get_state_second_derivative_single_phase(mpo_with_solution):
     mpo = mpo_with_solution
 
     sol = mpo.solve()
@@ -1128,7 +1128,7 @@ def test_mpopt_get_second_derivative_single_phase(mpo_with_solution):
 
     # Estimate second derivative
     # nodes = [taus for phase in range(mpo._ocp.n_phases)]
-    time, ddx, ddu = mpo.get_second_derivative_single_phase(sol, nodes=taus)
+    time, ddx, ddu = mpo.get_state_second_derivative_single_phase(sol, nodes=taus)
 
     assert np.array(
         [(abs(ddx_seg + 4) < 1e-3).all() for i, ddx_seg in enumerate(ddx)]

@@ -68,7 +68,8 @@ ocp.lbtf[1], ocp.ubtf[1] = 2.9, 2.9
 
 ocp.validate()
 if __name__ == "__main__":
-    mp.post_process._INTERPOLATION_NODES_PER_SEG = 200
+    mp.post_process._INTERPOLATION_NODES_PER_SEG = 20
+    mp.mpopt._MAX_GRID_POINTS = 5
     mp.mpopt._GRID_TYPE = "spectral"
 
     seg, p = 4, 20

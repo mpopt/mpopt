@@ -66,9 +66,9 @@ if __name__ == "__main__":
     import numpy as np
 
     # mp.post_process._INTERPOLATION_NODES_PER_SEG = 5
-    mp.mpopt._MAX_GRID_POINTS = 5
+    mp.mpopt._MAX_GRID_POINTS = 20
 
-    mpo = mp.mpopt(ocp, 20, 3)
+    mpo = mp.mpopt(ocp, 2, 3)
     sol = mpo.solve()
     post = mpo.process_results(sol, plot=True)
     x, u, t, _ = post.get_data(interpolate=True)
@@ -80,4 +80,30 @@ if __name__ == "__main__":
     ti, residual = mpo.get_dynamics_residuals(
         sol, grid_type="spectral", residual_type="relative", plot=True
     )
+
+    # Get the collocation points
+    taus = [mpo.collocation._taus_fn(deg)[1:] for deg in mpo.poly_orders]
+    print(taus)
+
+    # Estimate second derivative
+    # nodes = np.array([taus for phase in range(mpo._ocp.n_phases)])
+    time, ddx1, ddu = mpo.get_state_second_derivative_single_phase(
+        sol, 0, grid_type="fixed"
+    )
+    mp.plt.figure()
+    # mp.plt.plot(time[0][:, 0], ddx[0][:, 0, 0])
+
+    mpo = mp.mpopt(ocp, 2, 8)
+    sol = mpo.solve()
+    time, ddx0, ddu = mpo.get_state_second_derivative_single_phase(
+        sol, 0, grid_type="fixed"
+    )
+    # mp.plt.figure()
+    for seg in range(mpo.n_segments):
+        mp.plt.plot(
+            time[seg][:, 0], abs(ddx1[seg][:, 0, 0]) / abs(ddx0[seg][:, 0, 0]), "."
+        )
+        mp.plt.plot(
+            time[seg][:, 0], abs(ddx1[seg][:, 1, 0]) / abs(ddx0[seg][:, 1, 0]), "-"
+        )
     mp.plt.show()
