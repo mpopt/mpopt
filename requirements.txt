@@ -4,4 +4,4 @@ typing==3.10.0.0
 casadi==3.5.5.post2
 pytest==7.2.1
 matplotlib==3.6.3
-scipy==1.4.1
+scipy==1.10.0
