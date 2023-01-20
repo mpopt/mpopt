@@ -3,25 +3,30 @@
 MPOPT
 ~~~~~
 
-*MPOPT* is a collection of modules to solve multi-stage optimal control
-problems(OCPs) using pseudo-spectral collocation method. This module
-creates Nonlinear programming problem (NLP) from the given OCP
-description, which is then solved by CasADi nlpsolver using various
-available plugins such as *ipopt*, *snopt* etc.
+*MPOPT* is a completely open-source, extensible, customizable and easy to use python package
+that includes a collection of modules to solve multi-stage non-linear optimal control
+problems(OCP) using pseudo-spectral collocation methods. The package
+constructs Nonlinear programming problem (NLP) from a given OCP
+description, which is then solved by `CasADi nlpsolver <https://casadi.sourceforge.net/v3.3.0/api/html/d4/d89/group__nlpsol.html>`__
+(Algorithmic differentiation including support for number of solver plugins
+`ipopt <https://casadi.sourceforge.net/v3.3.0/api/html/d4/d89/group__nlpsol.html#plugin_Nlpsol_ipopt>`__,
+`snopt <https://casadi.sourceforge.net/v3.3.0/api/html/d4/d89/group__nlpsol.html#plugin_Nlpsol_snopt>`__,
+`sqpmethod <https://casadi.sourceforge.net/v3.3.0/api/html/d4/d89/group__nlpsol.html#plugin_Nlpsol_sqpmethod>`__,
+`scpgen <https://casadi.sourceforge.net/v3.3.0/api/html/d4/d89/group__nlpsol.html#plugin_Nlpsol_scpgen>`__,
+ etc. ).
 
 Main features of the solver are :
 
--  Customizable collocation approximation, compatable with
+-  Customizable collocation approximation, compatible with
    Legendre-Gauss-Radau, Legendre-Gauss-Lobatto, Chebyshev-Gauss-Lobatto
    roots.
 -  Intuitive definition of OCP/multi-phase OCP
--  Single-phase as well as multi-phase OCP solving capability using user
-   defined collocation approximation
--  Adaptive grid refinement schemes for robust solutions
+-  Single-phase as well as multi-phase OCP solving capability
+-  Adaptive grid refinement schemes (Easy to customize and extend)
 -  NLP solution using algorithmic differentiation capability offered by
    `CasADi <https://web.casadi.org/>`__, multiple NLP solver
    compatibility 'ipopt', 'snopt', 'sqpmethod' etc.
--  Sophisticated post-processing module for interactive data
+-  Includes a post-processing module for interactive data
    visualization
 
 Getting started
