@@ -24,6 +24,7 @@ import itertools
 import casadi as ca  # type: ignore
 import matplotlib.pyplot as plt
 import copy
+import math
 
 
 class mpopt:
@@ -47,6 +48,9 @@ class mpopt:
         >>> post = opt.process_results(solution, plot=True)
     """
 
+    _GRID_TYPE = "spectral"  # mid-points, spectral
+    _MAX_GRID_POINTS = 15  # Per phase
+
     def __init__(
         self: "mpopt",
         problem: "OCP",
@@ -68,17 +72,23 @@ class mpopt:
             [poly_orders] * n_segments if isinstance(poly_orders, int) else poly_orders
         )
 
+        self._ocp = copy.deepcopy(problem)
+        self.colloc_scheme = scheme  # available LGR, LGL, CGL
+        self.reset_mpopt()
+
+    def reset_mpopt(self):
         # Assert that poly_orders is defined for all the segments
         assert len(self.poly_orders) == self.n_segments
         self._Npoints = sum(self.poly_orders) + 1
 
-        self._ocp = copy.deepcopy(problem)
-
         # Set the status of internal function evaluations
-        self.colloc_scheme = scheme  # available LGR, LG, CGL
         self._collocation_approximation_computed = False
         self._variables_created = False
         self._nlpsolver_initialized = False
+        self.grid_type = [self._GRID_TYPE for _ in range(self._ocp.n_phases)]
+        self.max_grid_points = [
+            self._MAX_GRID_POINTS for _ in range(self._ocp.n_phases)
+        ]
 
     def compute_numerical_approximation(self, scheme: str = None) -> None:
         if scheme is None:
@@ -101,6 +111,7 @@ class mpopt:
         """
         self.X = ca.SX.sym("x", self._Npoints, self._ocp.nx, self._ocp.n_phases)
         self.U = ca.SX.sym("u", self._Npoints, self._ocp.nu, self._ocp.n_phases)
+        self.A = ca.SX.sym("a", self._ocp.na, self._ocp.n_phases)
         self.t0 = ca.SX.sym("t0", self._ocp.n_phases)
         self.tf = ca.SX.sym("tf", self._ocp.n_phases)
 
@@ -110,9 +121,16 @@ class mpopt:
 
         self.__scU = ca.diag(ca.vertcat(self._ocp.scale_u))
         self.__invScU = ca.solve(self.__scU, np.eye(self._ocp.nu))
+
+        self._scA = ca.diag(ca.vertcat(self._ocp.scale_a))
+        self.__invScA = ca.solve(self._scA, np.eye(self._ocp.na))
+
         self._optimization_vars_per_phase = (
-            self._Npoints * (self._ocp.nx + self._ocp.nu) + 2
+            self._Npoints * (self._ocp.nx + self._ocp.nu)
+            + self._ocp.n_phases * self._ocp.na
+            + 2
         )
+
         self.time_grid = [
             [None for i in range(self._Npoints)] for _ in range(self._ocp.n_phases)
         ]
@@ -154,6 +172,7 @@ class mpopt:
         # Get unscaled starting and final times for given phase
         t0 = self.t0[phase] / self._ocp.scale_t
         tf = self.tf[phase] / self._ocp.scale_t
+        a = ca.mtimes(self.__invScA, self.A[:, phase])
 
         # Get unscaled terminal states and controls to evaluate terminal cost and constraints
         t_seg0 = t0
@@ -162,6 +181,9 @@ class mpopt:
         # Initialize starting segment width (Unscaled)
         h_seg = (tf - t0) / (self.tau1 - self.tau0) * self.seg_widths[seg, phase]
         # Populate the discretized dynamics, constraints and cost vectors
+        dynamics = self._ocp.get_dynamics(phase)
+        path_constraints = self._ocp.get_path_constraints(phase)
+        running_costs = self._ocp.get_running_costs(phase)
         for index in range(self._Npoints):
             if point > self.poly_orders[seg]:
                 seg, point = seg + 1, 1
@@ -174,17 +196,12 @@ class mpopt:
             t = t_seg0 + h_seg * (self._taus[self.poly_orders[seg]][point] - self.tau0)
 
             # discretize dynamics
-            f[index] = (
-                h_seg
-                * ca.mtimes(
-                    self._scX, ca.vertcat(*self._ocp.dynamics[phase](x, u, t))
-                ).T
-            )
+            f[index] = h_seg * ca.mtimes(self._scX, ca.vertcat(*dynamics(x, u, t, a))).T
             # discretize path_constraints
             if has_constraints:
-                c[index] = ca.vertcat(*self._ocp.path_constraints[phase](x, u, t)).T
+                c[index] = ca.vertcat(*path_constraints(x, u, t, a)).T
             # running cost
-            q[index] = h_seg * ca.vertcat(self._ocp.running_costs[phase](x, u, t)).T
+            q[index] = h_seg * ca.vertcat(running_costs(x, u, t, a)).T
 
             point += 1
             self.time_grid[phase][index] = t
@@ -257,14 +274,17 @@ class mpopt:
         """
         x0 = ca.mtimes(self.__invScX, self.X[phase][0, :].T)
         xf = ca.mtimes(self.__invScX, self.X[phase][-1, :].T)
+        a = ca.mtimes(self.__invScA, self.A[:, phase])
         t0 = self.t0[phase] / self._ocp.scale_t
         tf = self.tf[phase] / self._ocp.scale_t
+
         # Check if OCP has terminal constraints
         has_terminal_constraints = self._ocp.has_terminal_constraints(phase)
         # Estimate constraint vector and bounds for the collocated terminal constraints
         if has_terminal_constraints:
+            terminal_constraints = self._ocp.get_terminal_constraints(phase)
             # Get unscaled starting and final times for given phase
-            TC = ca.vertcat(*self._ocp.terminal_constraints[phase](xf, tf, x0, t0))
+            TC = ca.vertcat(*terminal_constraints(xf, tf, x0, t0, a))
             ntc = TC.size1()
             TCmin = [self._ocp.LB_TERMINAL_CONSTRAINTS] * (ntc)
             TCmax = [self._ocp.UB_TERMINAL_CONSTRAINTS] * (ntc)
@@ -272,7 +292,8 @@ class mpopt:
             TC, TCmin, TCmax = [], [], []
 
         # Mayer term
-        J = ca.vertcat(self._ocp.terminal_costs[phase](xf, tf, x0, t0))
+        terminal_costs = self._ocp.get_terminal_costs(phase)
+        J = ca.vertcat(terminal_costs(xf, tf, x0, t0, a))
 
         return (TC, TCmin, TCmax, J)
 
@@ -375,7 +396,7 @@ class mpopt:
         taus_end = [np.array([self.tau0, self.tau1]) for deg in self.poly_orders]
 
         comp_interpolation_D = self.collocation.get_composite_interpolation_Dmatrix_at(
-            taus_end, self.poly_orders
+            taus_end, self.poly_orders, order=1
         )
         _compD = comp_interpolation_D[1:-1][::2] - comp_interpolation_D[2:-1][::2]
 
@@ -512,7 +533,11 @@ class mpopt:
         if not self._variables_created:
             self.create_variables()
         Z = ca.vertcat(
-            self.X[phase][:], self.U[phase][:], self.t0[phase], self.tf[phase]
+            self.X[phase][:],
+            self.U[phase][:],
+            self.t0[phase],
+            self.tf[phase],
+            self.A[:, phase],
         )
 
         # Lower and upper bounds for the states in OCP
@@ -529,6 +554,7 @@ class mpopt:
                 np.repeat(self._ocp.lbu[phase] * self._ocp.scale_u, self._Npoints),
                 self._ocp.lbt0[phase] * self._ocp.scale_t,
                 self._ocp.lbtf[phase] * self._ocp.scale_t,
+                self._ocp.lba[phase] * self._ocp.scale_a,
             ]
         )
         Zmax = np.concatenate(
@@ -537,6 +563,7 @@ class mpopt:
                 np.repeat(self._ocp.ubu[phase] * self._ocp.scale_u, self._Npoints),
                 self._ocp.ubt0[phase] * self._ocp.scale_t,
                 self._ocp.ubtf[phase] * self._ocp.scale_t,
+                self._ocp.uba[phase] * self._ocp.scale_a,
             ]
         )
 
@@ -623,20 +650,25 @@ class mpopt:
             solution : initialized solution for given phase
 
         """
-        z0 = [None] * 4
+        z0 = [None] * 5
         x00 = self._ocp.x00[phase] * self._ocp.scale_x
         xf0 = self._ocp.xf0[phase] * self._ocp.scale_x
         u00 = self._ocp.u00[phase] * self._ocp.scale_u
         uf0 = self._ocp.uf0[phase] * self._ocp.scale_u
         t00 = self._ocp.t00[phase] * self._ocp.scale_t
         tf0 = self._ocp.tf0[phase] * self._ocp.scale_t
+        a0 = self._ocp.a0[phase] * self._ocp.scale_a
 
         # Linear interpolation of states
         z0[0] = np.concatenate(
             np.array(
                 [
                     x00 + (xf0 - x00) / (tf0 - t00) * (t - t00)
-                    for t in np.linspace(t00, tf0, self._Npoints,)
+                    for t in np.linspace(
+                        t00,
+                        tf0,
+                        self._Npoints,
+                    )
                 ]
             ).T
         )
@@ -645,11 +677,15 @@ class mpopt:
             np.array(
                 [
                     u00 + (uf0 - u00) / (tf0 - t00) * (t - t00)
-                    for t in np.linspace(t00, tf0, self._Npoints,)
+                    for t in np.linspace(
+                        t00,
+                        tf0,
+                        self._Npoints,
+                    )
                 ]
             )
         )
-        z0[2], z0[3] = t00, tf0
+        z0[2], z0[3], z0[4] = t00, tf0, a0
 
         return np.concatenate(z0)
 
@@ -705,7 +741,7 @@ class mpopt:
             default_options = {
                 "ipopt.max_iter": 2000,
                 "ipopt.acceptable_tol": 1e-4,
-                "ipopt.print_level": 0,
+                "ipopt.print_level": 3,
             }
         else:
             default_options = dict()
@@ -748,7 +784,11 @@ class mpopt:
             self.create_solver(solver=solver, options=nlp_solver_options)
 
         # By default, these paramers are of equal segment width
-        self._nlp_sw_params = self.get_segment_width_parameters(initial_solution)
+        if "nlp_sw_params" in mpopt_options:
+            self._nlp_sw_params = mpopt_options["nlp_sw_params"]
+        else:
+            self._nlp_sw_params = self.get_segment_width_parameters(initial_solution)
+
         solver_inputs = self.get_solver_warm_start_input_parameters(initial_solution)
         solver_inputs["p"] = self._nlp_sw_params
 
@@ -805,14 +845,15 @@ class mpopt:
         """
         x = self.X[phase]
         u = self.U[phase]
+        a = self.A[:, phase]
         t0, tf = self.t0[phase] / self._ocp.scale_t, self.tf[phase] / self._ocp.scale_t
         t = ca.vertcat(*self.time_grid[phase])
         trajectories = ca.Function(
             "x_traj",
             [self.Z, self.seg_widths[:]],
-            [x, u, t, t0, tf],
+            [x, u, t, t0, tf, a],
             ["z", "h"],
-            ["x", "u", "t", "t0", "tf"],
+            ["x", "u", "t", "t0", "tf", "a"],
         )
 
         return trajectories
@@ -840,6 +881,7 @@ class mpopt:
         options = {
             "nx": self._ocp.nx,
             "nu": self._ocp.nu,
+            "na": self._ocp.na,
             "nPh": self._ocp.n_phases,
             "ns": self.n_segments,
             "poly_orders": self.poly_orders,
@@ -847,11 +889,12 @@ class mpopt:
             "phases_to_plot": self._ocp.phases_to_plot,
             "scale_x": self._ocp.scale_x,
             "scale_u": self._ocp.scale_u,
+            "scale_a": self._ocp.scale_a,
             "scale_t": self._ocp.scale_t,
             "scaling": scaling,
             "colloc_scheme": self.colloc_scheme,
-            "tau0": CollocationRoots._TAU_MIN,
-            "tau1": CollocationRoots._TAU_MAX,
+            "tau0": self.tau0,
+            "tau1": self.tau1,
             "interpolation_depth": 3,
             "seg_widths": self._nlp_sw_params,
         }
@@ -869,6 +912,569 @@ class mpopt:
         Validate initialization of the optimizer object
         """
         pass
+
+    def compute_states_from_solution_dynamics(
+        self, solution, phase: int = 0, nodes=None
+    ):
+        """
+        solution : NLP solution
+        """
+        trajectories = self.init_trajectories(phase)
+        x, u, t, t0, tf, a = trajectories(solution["x"], self._nlp_sw_params)
+        t0, tf = np.concatenate(t0.full()), np.concatenate(tf.full())
+
+        t_seg = [t[0]] + [
+            t[sum(self.poly_orders[: (i + 1)])] for i in range(len(self.poly_orders))
+        ]
+        x_seg = [x[0, :]] + [
+            x[sum(self.poly_orders[: (i + 1)]), :] for i in range(len(self.poly_orders))
+        ]
+
+        if nodes is None:
+            target_nodes = self.get_residual_grid_taus(
+                phase=phase, grid_type=self.grid_type[phase]
+            )
+        else:
+            target_nodes = nodes
+
+        xi, ui, ti, a, Dxi, Dui, taus_grid = self.interpolate_single_phase(
+            solution, phase=phase, target_nodes=target_nodes, options={}
+        )
+        # print("taus", taus_grid)
+        seg_widths = self._nlp_sw_params[
+            self.n_segments * phase : self.n_segments * (phase + 1)
+        ]
+        index = 0
+        n_taus = [len(taus) for taus in taus_grid]
+        xint_phase = [None] * self.n_segments
+        residual_phase = [None] * self.n_segments
+        u_phase = [None] * self.n_segments
+        dynamics = self._ocp.get_dynamics(phase)
+        ti_phase = [None] * self.n_segments
+
+        roots_dict = {}
+        for seg in range(self.n_segments):
+            roots_dict["c{}".format(seg)] = taus_grid[seg]
+
+        self.collocation.init_polynomials_with_customized_roots(roots_dict)
+
+        for seg in range(self.n_segments):
+            taus = taus_grid[seg]
+            f = [None] * n_taus[seg]
+            t = [None] * n_taus[seg]
+            xint_seg = [None] * n_taus[seg]
+            residual_seg = [None] * n_taus[seg]
+            u_seg = [None] * n_taus[seg]
+            xstart = x_seg[seg]
+            h_seg = (tf[0] - t0[0]) / (self.tau1 - self.tau0) * seg_widths[seg]
+            for i, tau in enumerate(taus):
+                f[i] = dynamics(
+                    xi[index, :].T / self._ocp.scale_x,
+                    ui[index, :].T / self._ocp.scale_u,
+                    ti[index],
+                    a / self._ocp.scale_a,
+                )
+                f[i] = ca.DM(f[i])
+                t[i] = ti[index]
+                u_seg[i] = ui[index, :]
+                residual_seg[i] = np.concatenate(xi[index, :].full())
+
+                index += 1
+            if f:
+                f = np.array(f).reshape(len(f), f[0].size()[0])
+            for i, tau in enumerate(taus):
+                quad_tau = self.collocation.quad_matrix_fn(
+                    self.collocation, "c{}".format(seg), tau0=self.tau0, tau1=tau
+                )
+                xint_seg[i] = np.concatenate(xstart.full()) + np.concatenate(
+                    h_seg * (np.dot(quad_tau.T, (f * self._ocp.scale_x)))
+                )
+                residual_seg[i] = residual_seg[i] - xint_seg[i]
+
+            start, end = sum(n_taus[:seg]), sum(n_taus[: (seg + 1)])
+            if start == end:
+                continue
+
+            ti_phase[seg] = np.concatenate(np.array(t).reshape(len(t), 1))
+            xint_phase[seg] = np.array(xint_seg)
+            residual_phase[seg] = residual_seg
+            u_phase[seg] = np.array(u_seg)
+
+        return xint_phase, u_phase, ti_phase, residual_phase
+
+    def get_states_residuals(
+        self,
+        solution,
+        nodes=None,
+        grid_type="spectral",
+        residual_type=None,
+        plot=False,
+        fig=None,
+        axs=None,
+    ):
+        """Compute residual of the system dynamics at given taus (Normalized [0, 1]) by interpolating the
+        given solution onto a fixed grid consisting of single segment per phase with
+         roots at given target_nodes.
+
+        args:
+            :grid_type: target grid type (normalized between 0 and 1)
+            :solution: solution of the NLP as reported by the solver
+            :nodes: grid where the residual is computed (between tau0, tau1) in a list (nodes[0] -> Nodes for phase0)
+            :options: Options for the target grid
+
+        returns:
+            :residuals: residual vector for the dynamics at the given taus
+        """
+        residuals, ti = [None] * self._ocp.n_phases, [None] * self._ocp.n_phases
+        for phase in range(self._ocp.n_phases):
+            if nodes is None:
+                target_nodes = self.get_residual_grid_taus(phase, grid_type=grid_type)
+            else:
+                target_nodes = nodes[phase]
+
+            (
+                x_phase,
+                u_phase,
+                ti[phase],
+                residuals[phase],
+            ) = self.compute_states_from_solution_dynamics(
+                solution, phase, nodes=target_nodes
+            )
+
+            # Compute relative residual in each segment (Global relative)
+            if residual_type == "relative":
+                # print(residuals[phase])  # = np.array(residuals[phase])
+                max_val = np.zeros(self._ocp.nx)
+                for seg, res_seg in enumerate(x_phase):
+                    if res_seg is not None:
+                        seg_max = abs(np.array(res_seg)).max(axis=0)
+                        for id, val in enumerate(max_val):
+                            max_val[id] = (
+                                max_val[id]
+                                if max_val[id] > seg_max[id]
+                                else seg_max[id]
+                            )
+                for seg, res_seg in enumerate(residuals[phase]):
+                    if res_seg is not None:
+                        residuals[phase][seg] = np.array(res_seg) / max_val
+                        # assert abs(residuals[phase][seg]).max() <= 1
+
+        if plot:
+            fig, axs = post_process.plot_residuals(
+                ti, residuals, phases=range(self._ocp.n_phases), fig=fig, axs=axs
+            )
+
+        return ti, residuals
+
+    def get_residual_grid_taus(self, phase: int = 0, grid_type: str = None):
+        """Select the non-collocation nodes in a given phase
+
+        This is often useful in estimation of residual once the OCP is solved.
+        Starting and end nodes are not included.
+
+        args:
+            :phase: Index of the phase
+            :grid_type: Type of non-collocation nodes (fixed, mid-points, spectral)
+
+        returns:
+            :points: List of normalized collocation points in each segment of the phase
+
+        """
+        if grid_type == None:
+            grid_type = self.grid_type[phase]
+        if grid_type == "fixed":
+            # Equally spaced nodes per phase
+            target_nodes = np.linspace(self.tau0, self.tau1, self._MAX_GRID_POINTS + 2)
+            taus_on_original_grid = (
+                self.compute_interpolation_taus_corresponding_to_original_grid(
+                    target_nodes,
+                    self._nlp_sw_params[
+                        self.n_segments * phase : self.n_segments * (phase + 1)
+                    ],
+                )
+            )
+            taus_on_original_grid[0] = taus_on_original_grid[0][:-1]
+        elif grid_type == "mid-points":
+            mid_points = lambda x: np.array(
+                [(x[i] + x[i + 1]) / 2.0 for i in range(len(x) - 1)]
+            )
+            taus_on_original_grid = np.array(
+                [mid_points(self.collocation._taus_fn(deg)) for deg in self.poly_orders]
+            )
+        elif grid_type == "spectral":
+            taus_on_original_grid = np.array(
+                [
+                    np.array(self.collocation._taus_fn(self._MAX_GRID_POINTS + 2)[1:-1])
+                    for deg in self.poly_orders
+                ]
+            )
+        else:
+            # Automatically select mid points of collocation nodes to evaluate residuals
+            taus_on_original_grid = None
+
+        return taus_on_original_grid
+
+    @staticmethod
+    def compute_interpolation_taus_corresponding_to_original_grid(
+        nodes_req, seg_widths
+    ):
+        """Compute the taus on original solution grid corresponding to the required interpolation nodes
+
+        args:
+            :nodes_req: target_nodes
+            :seg_widths: width of the segments whose sum equal 1
+
+        returns:
+            :taus: List of taus in each segment corresponding to nodes_req on target_grid
+        """
+        cumulative_sw = np.append(0, np.cumsum(seg_widths))
+        assert abs(cumulative_sw[-1] - 1) < 1e-6
+        n_segments = len(seg_widths)
+
+        interp_taus = [None] * n_segments
+        for i, seg in enumerate(seg_widths):
+            # Starting node (0) won't be part of interpolation
+            interp_taus[i] = nodes_req[nodes_req > cumulative_sw[i]]
+            # Terminal state is included
+            interp_taus[i] = interp_taus[i][interp_taus[i] <= cumulative_sw[i + 1]]
+            # Normalize the taus to 1 by dividing with segment width
+            interp_taus[i] = (interp_taus[i] - cumulative_sw[i]) / seg
+
+        return interp_taus
+
+    def get_state_second_derivative(
+        self,
+        solution,
+        grid_type="spectral",
+        nodes=None,
+        plot=False,
+        fig=None,
+        axs=None,
+    ):
+        """Compute residual of the system states at given taus (Normalized [0, 1]) by interpolating the
+        given solution onto a fixed grid consisting of single segment per phase with
+         roots at given target_nodes.
+
+        args:
+            :grid_type: target grid type (normalized between 0 and 1)
+            :solution: solution of the NLP as reported by the solver
+            :options: Options for the target grid
+
+        returns:
+            :residuals: residual vector for the states at the given taus
+        """
+        DDx, DDu, ti = (
+            [None] * self._ocp.n_phases,
+            [None] * self._ocp.n_phases,
+            [None] * self._ocp.n_phases,
+        )
+        for phase in range(self._ocp.n_phases):
+            if nodes is None:
+                target_nodes = self.get_residual_grid_taus(phase, grid_type=grid_type)
+            else:
+                target_nodes = nodes[phase]
+
+            (
+                ti[phase],
+                DDx[phase],
+                DDu[phase],
+            ) = self.get_state_second_derivative_single_phase(
+                solution, phase, nodes=target_nodes
+            )
+
+        if plot:
+            fig, axs = post_process.plot_residuals(
+                ti, DDx, phases=range(self._ocp.n_phases), fig=fig, axs=axs
+            )
+
+        return ti, DDx, DDu
+
+    def get_state_second_derivative_single_phase(
+        self,
+        solution,
+        phase: int = 0,
+        nodes: List = None,
+        grid_type: str = None,
+        residual_type: str = None,
+    ):
+        """Compute residual of the system dynamics at given taus (Normalized [0, 1]) by interpolating the
+        given solution onto a fixed grid consisting of single segment per phase with
+         roots at given target_nodes.
+
+        args:
+            :target_nodes: target grid nodes (normalized between 0 and 1)
+            :solution: solution of the NLP as reported by the solver
+            :residual_type: 'relative' if relative is req.
+
+        returns:
+            :residuals: residual vector for the dynamics at the given taus
+        """
+        trajectories = self.init_trajectories(phase)
+        x, u, t, t0, tf, a = trajectories(solution["x"], self._nlp_sw_params)
+        t0, tf = np.concatenate(t0.full()), np.concatenate(tf.full())
+
+        if nodes is None:
+            if grid_type is None:
+                grid_type = self.grid_type[phase]
+            target_nodes = self.get_residual_grid_taus(
+                phase=phase, grid_type=self.grid_type[phase]
+            )
+        else:
+            target_nodes = nodes
+        ti = self.get_interpolated_time_grid(
+            t, target_nodes, self.poly_orders, self.tau0, self.tau1
+        )
+
+        comp_interpolation_D = self.collocation.get_composite_interpolation_Dmatrix_at(
+            target_nodes, self.poly_orders, order=2
+        )
+
+        DDXi = ca.mtimes(comp_interpolation_D, x)
+        DDUi = ca.mtimes(comp_interpolation_D, u)
+
+        seg_widths = self._nlp_sw_params[
+            self.n_segments * phase : self.n_segments * (phase + 1)
+        ]
+        index = 0
+        n_taus = [len(taus) for taus in target_nodes]
+        ddx_phase = [None] * self.n_segments
+        ddu_phase = [None] * self.n_segments
+        ti_phase = [None] * self.n_segments
+        for seg in range(self.n_segments):
+            taus = target_nodes[seg]
+            r = [None] * n_taus[seg]
+            u = [None] * n_taus[seg]
+            t = [None] * n_taus[seg]
+            for i, tau in enumerate(taus):
+                r[i] = DDXi[index, :].T.full()
+                u[i] = DDUi[index, :].T.full()
+                t[i] = ti[index].full()[0]
+                index += 1
+            start, end = sum(n_taus[:seg]), sum(n_taus[: (seg + 1)])
+            if start == end:
+                continue
+            R = np.array(r)  # numpy multiplication
+            U = np.array(u)  # numpy multiplication
+            ddx_phase[seg] = R
+            ddu_phase[seg] = U
+            if residual_type == "relative":
+                ddx_phase[seg] = ddx_phase[seg] / (ddx_phase[seg].max())
+                ddu_phase[seg] = ddu_phase[seg] / (ddu_phase[seg].max())
+            ti_phase[seg] = np.array(t)
+
+        return ti_phase, ddx_phase, ddu_phase
+
+    def get_dynamics_residuals(
+        self,
+        solution,
+        nodes=None,
+        grid_type=None,
+        residual_type=None,
+        plot=False,
+        fig=None,
+        axs=None,
+    ):
+        """Compute residual of the system dynamics at given taus (Normalized [0, 1]) by interpolating the
+        given solution onto a fixed grid consisting of single segment per phase with
+         roots at given target_nodes.
+
+        args:
+            :grid_type: target grid type (normalized between 0 and 1)
+            :solution: solution of the NLP as reported by the solver
+            :nodes: grid where the residual is computed (between tau0, tau1) in a list (nodes[0] -> Nodes for phase0)
+            :options: Options for the target grid
+            :residual_type:
+                None - Actual residual values
+                "relative" - Scaled residual between -1 and 1
+
+        returns:
+            :residuals: residual vector for the dynamics at the given taus
+        """
+        residuals, ti = [None] * self._ocp.n_phases, [None] * self._ocp.n_phases
+        for phase in range(self._ocp.n_phases):
+            if nodes is None:
+                if grid_type is None:
+                    grid_type = self.grid_type[phase]
+                target_nodes = self.get_residual_grid_taus(phase, grid_type=grid_type)
+            else:
+                target_nodes = nodes[phase]
+
+            (
+                ti[phase],
+                residuals[phase],
+                dyn_phase,
+            ) = self.get_dynamics_residuals_single_phase(
+                solution, phase, target_nodes=target_nodes
+            )
+
+            # Compute relative residual in each segment (Global relative)
+            if residual_type == "relative":
+                # print(residuals[phase])  # = np.array(residuals[phase])
+                max_val = np.zeros(self._ocp.nx)
+                for seg, res_seg in enumerate(dyn_phase):
+                    if res_seg is not None:
+                        seg_max = abs(np.array(res_seg)).max(axis=0)
+                        for id, val in enumerate(max_val):
+                            max_val[id] = (
+                                max_val[id]
+                                if max_val[id] > seg_max[id]
+                                else seg_max[id]
+                            )
+                for seg, res_seg in enumerate(residuals[phase]):
+                    if res_seg is not None:
+                        residuals[phase][seg] = np.array(res_seg) / max_val
+                        assert abs(residuals[phase][seg]).max() <= 1
+
+        if plot:
+            fig, axs = post_process.plot_residuals(
+                ti, residuals, phases=range(self._ocp.n_phases), fig=fig, axs=axs
+            )
+
+        return ti, residuals
+
+    def get_dynamics_residuals_single_phase(
+        self,
+        solution,
+        phase: int = 0,
+        target_nodes: List = None,
+    ):
+        """Compute residual of the system dynamics at given taus (Normalized [0, 1]) by interpolating the
+        given solution onto a fixed grid consisting of single segment per phase with
+         roots at given target_nodes.
+
+        args:
+            :target_nodes: target grid nodes (normalized between 0 and 1)
+            :solution: solution of the NLP as reported by the solver
+
+        returns:
+            :residuals: residual vector for the dynamics at the given taus
+        """
+        xi, ui, ti, a, Dxi, Dui, taus_grid = self.interpolate_single_phase(
+            solution, phase=phase, target_nodes=target_nodes, options={}
+        )
+        seg_widths = self._nlp_sw_params[
+            self.n_segments * phase : self.n_segments * (phase + 1)
+        ]
+        index = 0
+        n_taus = [len(taus) for taus in taus_grid]
+        residual_phase = [None] * self.n_segments
+        dyn_phase = [None] * self.n_segments
+        dynamics = self._ocp.get_dynamics(phase)
+        ti_phase = [None] * self.n_segments
+        for seg in range(self.n_segments):
+            taus = taus_grid[seg]
+            f = [None] * n_taus[seg]
+            t = [None] * n_taus[seg]
+            for i, tau in enumerate(taus):
+                f[i] = dynamics(
+                    xi[index, :].T / self._ocp.scale_x,
+                    ui[index, :].T / self._ocp.scale_u,
+                    ti[index],
+                    a / self._ocp.scale_a,
+                )
+                f[i] = ca.DM(f[i])
+                t[i] = ti[index]
+                index += 1
+            if f:
+                f = np.array(f).reshape(len(f), f[0].size()[0])
+            start, end = sum(n_taus[:seg]), sum(n_taus[: (seg + 1)])
+            if start == end:
+                continue
+            h_seg = (ti[-1] - ti[0]) / (self.tau1 - self.tau0) * seg_widths[seg]
+            F = h_seg.full().reshape(1) * (
+                f * self._ocp.scale_x
+            )  # numpy multiplication
+            residual_phase[seg] = Dxi[start:end, :].full().reshape(F.shape) - F
+            dyn_phase[seg] = F
+            ti_phase[seg] = t
+
+        return ti_phase, residual_phase, dyn_phase
+
+    def interpolate_single_phase(
+        self,
+        solution,
+        phase: int = 0,
+        target_nodes: np.ndarray = None,
+        grid_type=None,
+        options: Set = {},
+    ):
+        """Interpolate the solution at given taus
+
+        args:
+            :solution: solution as reported by nlp solver
+            :phase: index of the phase
+            :target_nodes: List of nodes at which interpolation is performed
+
+        returns:
+            Tuple - (X, DX, DU)
+                X - Interpolated states
+                DX - Derivative of the interpolated states based on PS polynomials
+                DU - Derivative of the interpolated controls based on PS polynomials
+        """
+        trajectories = self.init_trajectories(phase)
+        x, u, t, t0, tf, a = trajectories(solution["x"], self._nlp_sw_params)
+        t0, tf = np.concatenate(t0.full()), np.concatenate(tf.full())
+
+        if target_nodes is None:
+            if grid_type is None:
+                grid_type = self.grid_type[phase]
+            target_nodes = self.get_residual_grid_taus(phase=phase, grid_type=grid_type)
+        ti = self.get_interpolated_time_grid(
+            t, target_nodes, self.poly_orders, self.tau0, self.tau1
+        )
+
+        comp_interpolation_I = self.collocation.get_composite_interpolation_matrix(
+            target_nodes, self.poly_orders
+        )
+        comp_interpolation_D = self.collocation.get_composite_interpolation_Dmatrix_at(
+            target_nodes, self.poly_orders, order=1
+        )
+
+        Xi = ca.mtimes(comp_interpolation_I, x)
+        Ui = ca.mtimes(comp_interpolation_I, u)
+        DXi = ca.mtimes(comp_interpolation_D, x)
+        DUi = ca.mtimes(comp_interpolation_D, u)
+
+        # Plot to check if the interpolation is good
+        if "plot" in options:
+            fig, axs = post_process.plot_all(
+                x.full(), u.full(), t.full(), tics=["."] * 15
+            )
+            fig, axs = post_process.plot_all(
+                Xi.full(), Ui.full(), ti, fig=fig, axs=axs, legend=False
+            )
+
+        return (Xi, Ui, ti, a, DXi, DUi, target_nodes)
+
+    @staticmethod
+    def get_interpolated_time_grid(
+        t_orig, taus: np.ndarray, poly_orders: np.ndarray, tau0: float, tau1: float
+    ):
+        """Update the time vector with the interpolated grid across each segment of
+        the original optimization problem
+
+        args:
+            :t_orig: Time grid of the original optimization problem (unscaled/scaled)
+            :taus: grid of the interpolation taus across each segment of the original OCP
+            :poly_orders: Order of the polynomials across each segment used in solving OCP
+
+        returns:
+            :time: Interpolated time grid
+        """
+        # Get the time corresponding to the segment start and end in the original opt. problem
+        t_seg = [t_orig[0]] + [
+            t_orig[sum(poly_orders[: (i + 1)])] for i in range(len(poly_orders))
+        ]
+
+        # Interpolate the original time grid
+        time_grid = [
+            t_seg[i]
+            + (t_seg[i + 1] - t_seg[i])
+            * (0 + (1 - 0) / (tau1 - tau0) * (taus[i] - tau0))
+            for i in range(len(t_seg) - 1)
+        ]
+
+        return ca.vertcat(*time_grid)
 
 
 class post_process:
@@ -912,6 +1518,7 @@ class post_process:
             self.phases = [0]
         self.nx = self.options["nx"] if "nx" in self.options else 1
         self.nu = self.options["nu"] if "nu" in self.options else 1
+        self.na = self.options["na"] if "na" in self.options else 0
         self.scaling = self.options["scaling"] if "scaling" in self.options else False
         # Starting point of the grid
         self.tau0 = (
@@ -919,6 +1526,7 @@ class post_process:
             if "tau0" in self.options
             else CollocationRoots._TAU_MIN
         )
+
         # End point of the grid
         self.tau1 = (
             self.options["tau1"]
@@ -933,27 +1541,28 @@ class post_process:
             :phase: index of the phase
 
         returns:
-            Tuple : (x, u, t)
+            Tuple : (x, u, t, a)
                 x - states
                 u - controls
                 t - corresponding time vector
         """
         if "seg_widths" in self.options:
-            x, u, t, t0, tf = self.trajectories[phase](
+            x, u, t, t0, tf, a = self.trajectories[phase](
                 self.solution["x"], self.options["seg_widths"]
             )
         else:
-            x, u, t, t0, tf = self.trajectories[phase](self.solution["x"])
-        x_opt, u_opt, t_opt = (x.full(), u.full(), t.full())
+            x, u, t, t0, tf, a = self.trajectories[phase](self.solution["x"])
+        x_opt, u_opt, t_opt, a_opt = (x.full(), u.full(), t.full(), a.full())
 
         scale_t = self.options["scale_t"] if "scale_t" in self.options else 1.0
         if not self.scaling:
             scale_x = self.options["scale_x"] if "scale_x" in self.options else 1.0
             scale_u = self.options["scale_u"] if "scale_u" in self.options else 1.0
+            scale_a = self.options["scale_a"] if "scale_a" in self.options else 1.0
 
-            return (x_opt / scale_x, u_opt / scale_u, t_opt)
+            return (x_opt / scale_x, u_opt / scale_u, t_opt, a_opt / scale_a)
 
-        return (x_opt, u_opt, t_opt)
+        return (x_opt, u_opt, t_opt, a_opt)
 
     def get_original_data(self, phases: List = []):
         """Get optimized result for multiple phases
@@ -962,22 +1571,23 @@ class post_process:
             :phases: Optional, List of phases to retrieve the data from.
 
         returns:
-            Tuple : (x, u, t)
+            Tuple : (x, u, t, a)
                 x - states
                 u - controls
                 t - corresponding time vector
         """
         if not phases:
             phases = self.phases
-        x, u, t = self.get_trajectories(phases[0])
+        x, u, t, a = self.get_trajectories(phases[0])
         if len(phases) > 1:
             for phase in phases[1:]:
-                xp, up, tp = self.get_trajectories(phase)
+                xp, up, tp, ap = self.get_trajectories(phase)
                 x = np.vstack((x, xp))
                 u = np.vstack((u, up))
                 t = np.vstack((t, tp))
+                a = np.vstack((a, ap))
 
-        return (x, u, t)
+        return (x, u, t, a)
 
     def get_interpolation_taus(
         self, n: int = 75, taus_orig: np.ndarray = None, method: str = "uniform"
@@ -1029,7 +1639,9 @@ class post_process:
         return taus_orig
 
     @staticmethod
-    def get_interpolated_time_grid(t_orig, taus: np.ndarray, poly_orders: np.ndarray):
+    def get_interpolated_time_grid(
+        t_orig, taus: np.ndarray, poly_orders: np.ndarray, tau0: float, tau1: float
+    ):
         """Update the time vector with the interpolated grid across each segment of
         the original optimization problem
 
@@ -1048,7 +1660,9 @@ class post_process:
 
         # Interpolate the original time grid
         time_grid = [
-            t_seg[i] + (t_seg[i + 1] - t_seg[i]) * taus[i]
+            t_seg[i]
+            + (t_seg[i + 1] - t_seg[i])
+            * (0 + (1 - 0) / (tau1 - tau0) * (taus[i] - tau0))
             for i in range(len(t_seg) - 1)
         ]
 
@@ -1062,7 +1676,7 @@ class post_process:
             :taus: collocation grid points across which interpolation is performed
 
         returns:
-            Tuple : (x, u, t)
+            Tuple : (x, u, t, a)
                 x - interpolated states
                 u - interpolated controls
                 t - interpolated time grid
@@ -1088,26 +1702,31 @@ class post_process:
         compI = collocation.get_composite_interpolation_matrix(taus, poly_orders)
 
         # Get original solution from the solution
-        x_orig, u_orig, t_orig = self.get_original_data([phases[0]])
+        x_orig, u_orig, t_orig, a = self.get_original_data([phases[0]])
 
         # Interpolate the original solution using the composite matrix
         x, u = np.dot(compI, x_orig), np.dot(compI, u_orig)
 
         # Get the time corresponding to the interpolated data
-        t = self.get_interpolated_time_grid(t_orig, taus, poly_orders)
+        t = self.get_interpolated_time_grid(
+            t_orig, taus, poly_orders, self.tau0, self.tau1
+        )
 
         if len(phases) > 1:
             # Repeat the interpolation procedure across remaining phases
             # All phases are assumed to be having same composite matrix (as of now)
             for phase in phases[1:]:
-                x_orig, u_orig, t_orig = self.get_original_data([phase])
+                x_orig, u_orig, t_orig, ap = self.get_original_data([phase])
                 xp, up = np.dot(compI, x_orig), np.dot(compI, u_orig)
-                tp = self.get_interpolated_time_grid(t_orig, taus, poly_orders)
+                tp = self.get_interpolated_time_grid(
+                    t_orig, taus, poly_orders, self.tau0, self.tau1
+                )
                 x = np.vstack((x, xp))
                 u = np.vstack((u, up))
                 t = np.hstack((t, tp))
+                a = np.hstack((a, ap))
 
-        return (x, u, t)
+        return (x, u, t, a)
 
     def get_data(self, phases: List = [], interpolate: bool = False):
         """Get solution corresponding to given phases (original/interpolated)
@@ -1119,20 +1738,20 @@ class post_process:
                 False - Return original data
 
         returns:
-            Tuple : (x, u, t)
+            Tuple : (x, u, t, a)
                 x - interpolated states
                 u - interpolated controls
                 t - interpolated time grid
         """
         if not phases:
             phases = self.phases
-        (x, u, t) = (
+        (x, u, t, a) = (
             self.get_interpolated_data(phases)
             if interpolate
             else self.get_original_data(phases)
         )
 
-        return (x, u, t)
+        return (x, u, t, a)
 
     def plot_phase(self, phase: int = 0, interpolate: bool = True, fig=None, axs=None):
         """Plot states and controls across given phase
@@ -1179,12 +1798,12 @@ class post_process:
                 phase = [0]
 
         if interpolate:
-            xi, ui, ti = self.get_data(phases, interpolate)
+            xi, ui, ti, _ = self.get_data(phases=phases, interpolate=interpolate)
             fig, axs = self.plot_all(
                 xi, ui, ti, legend=False, fig=fig, axs=axs, tics=tics
             )
             tics = ["."] * 15
-        x, u, t = self.get_data(phases, interpolate=False)
+        x, u, t, _ = self.get_data(phases=phases, interpolate=False)
         fig, axs = self.plot_all(x, u, t, tics=tics, fig=fig, axs=axs, name=name)
 
         return fig, axs
@@ -1218,7 +1837,7 @@ class post_process:
             phases = self.phases
         if not dims:
             dims = range(self.nx)
-        x, _, t = self.get_data(phases, interpolate)
+        x, _, t, _ = self.get_data(phases, interpolate)
         fig, axs = self.plot_single_variable(
             x,
             t,
@@ -1267,7 +1886,7 @@ class post_process:
         if tics is None:
             tics = ["."] * 15
         if interpolate:
-            _, u, t = self.get_data(phases, interpolate=False)
+            _, u, t, _ = self.get_data(phases, interpolate=False)
             fig, axs = self.plot_single_variable(
                 u,
                 t,
@@ -1280,7 +1899,7 @@ class post_process:
                 tics=tics,
             )
 
-        _, u, t = self.get_data(phases, interpolate)
+        _, u, t, _ = self.get_data(phases, interpolate)
         fig, axs = self.plot_single_variable(
             u,
             t,
@@ -1413,11 +2032,10 @@ class post_process:
 
     @staticmethod
     def sort_residual_data(time, residuals, phases: List = [0]):
-        """ Sort the given data corresponding to plases
-        """
+        """Sort the given data corresponding to plases"""
         norm_residual = lambda residual: np.concatenate(
             [
-                np.linalg.norm(err.full(), 2, axis=1) if err != None else []
+                np.linalg.norm(np.array(err), 2, axis=1) if err is not None else []
                 for err in residual
             ]
         )
@@ -1428,7 +2046,10 @@ class post_process:
                 r = np.vstack((r, rp))
                 t = np.vstack((t, tp))
 
-        r = r.reshape(len(r), 1)
+            r = np.concatenate(r)
+
+        t = np.concatenate(np.concatenate(t))
+        r = r.reshape(t.shape[0], 1)
         return (r, t)
 
     @classmethod
@@ -1442,20 +2063,21 @@ class post_process:
         axs=None,
         tics=None,
     ):
-        """Plot residual in dynamics
-        """
+        """Plot residual in dynamics"""
         if tics is None:
             tics = self.__TICS
         if (fig == None) and (axs == None):
             fig, axs = plt.subplots(1, 1)
 
         r, t = self.sort_residual_data(time, residuals, phases=phases)
+        print(t.shape, r.shape, time[0])
+
         self.plot_curve(
             axs,
             r,
             t,
             name,
-            ylabel="residual in dynamics",
+            ylabel="residuals",
             tics=tics,
             legend_index=[""] * 15,
         )
@@ -1472,10 +2094,10 @@ class mpopt_h_adaptive(mpopt):
     Examples :
         >>> # Moon lander problem
         >>> from mpopt import mp
-        >>> ocp = mp.OCP(n_states=2, n_controls=1, n_phases=1)
-        >>> ocp.dynamics[0] = lambda x, u, t: [x[1], u[0] - 1.5]
-        >>> ocp.running_costs[0] = lambda x, u, t: u[0]
-        >>> ocp.terminal_constraints[0] = lambda xf, tf, x0, t0: [xf[0], xf[1]]
+        >>> ocp = mp.OCP(n_states=2, n_controls=1, n_params=0, n_phases=1)
+        >>> ocp.dynamics[0] = lambda x, u, t, a: [x[1], u[0] - 1.5]
+        >>> ocp.running_costs[0] = lambda x, u, t, a: u[0]
+        >>> ocp.terminal_constraints[0] = lambda xf, tf, x0, t0, a: [xf[0], xf[1]]
         >>> ocp.x00[0] = [10, -2]
         >>> ocp.lbu[0] = 0; ocp.ubu[0] = 3
         >>> ocp.lbtf[0] = 3; ocp.ubtf[0] = 5
@@ -1487,8 +2109,6 @@ class mpopt_h_adaptive(mpopt):
     _SEG_WIDTH_MIN = 1e-5
     _SEG_WIDTH_MAX = 1
 
-    _GRID_TYPE = "fixed"  # mid-points, spectral
-    _MAX_GRID_POINTS = 200  # Per phase
     _TOL_SEG_WIDTH_CHANGE = 0.05  # < 5% change in width fraction (Converged)
     _TOL_RESIDUAL = 1e-2
 
@@ -1521,7 +2141,6 @@ class mpopt_h_adaptive(mpopt):
         self.lbh = [self._SEG_WIDTH_MIN for _ in range(self._ocp.n_phases)]
         self.ubh = [self._SEG_WIDTH_MAX for _ in range(self._ocp.n_phases)]
         self.tol_residual = [self._TOL_RESIDUAL for _ in range(self._ocp.n_phases)]
-        self.grid_type = [self._GRID_TYPE for _ in range(self._ocp.n_phases)]
         self.fig, self.axs = None, None
         self.plot_residual_evolution = False
 
@@ -1568,6 +2187,7 @@ class mpopt_h_adaptive(mpopt):
             mpopt_options["sub_method"] = self._DEFAULT_SUB_METHOD
 
         self.iter_count, self.iter_info = 0, dict()
+        sw_old = []
         for iter in range(max_iter):
             # By default, these paramers are of equal segment width
             self._nlp_sw_params, max_error = self.get_segment_width_parameters(
@@ -1664,49 +2284,10 @@ class mpopt_h_adaptive(mpopt):
 
         return seg_widths, max_error
 
-    def get_residual_grid_taus(self, phase: int = 0, grid_type: str = None):
-        """Select the non-collocation nodes in a given phase
-
-        This is often useful in estimation of residual once the OCP is solved.
-
-        args:
-            :phase: Index of the phase
-            :grid_type: Type of non-collocation nodes (fixed, mid-points, spectral)
-
-        returns:
-            :points: List of normalized collocation points in each segment of the phase
-
-        """
-        if grid_type == None:
-            grid_type = self.grid_type[phase]
-        if grid_type == "fixed":
-            # Equally spaced nodes per phase
-            target_nodes = np.linspace(self.tau0, self.tau1, self._MAX_GRID_POINTS)
-            taus_on_original_grid = self.compute_interpolation_taus_corresponding_to_original_grid(
-                target_nodes,
-                self._nlp_sw_params[
-                    self.n_segments * phase : self.n_segments * (phase + 1)
-                ],
-            )
-            # Add 0 to the taus as it is not included by default
-            taus_on_original_grid[0] = np.append(self.tau0, taus_on_original_grid[0])
-        elif grid_type == "mid-points":
-            mid_points = lambda x: [(x[i] + x[i + 1]) / 2.0 for i in range(len(x) - 1)]
-            taus_on_original_grid = [
-                mid_points(self.collocation._taus_fn(deg)) for deg in self.poly_orders
-            ]
-        elif grid_type == "spectral":
-            taus_on_original_grid = [
-                self.collocation._taus_fn(deg - 1)[1:-1] for deg in self.poly_orders
-            ]
-        else:
-            # Automatically select mid points of collocation nodes to evaluate residuals
-            taus_on_original_grid = None
-
-        return taus_on_original_grid
-
     def compute_seg_width_based_on_residuals(
-        self, solution, method: str = "merge_split",
+        self,
+        solution,
+        method: str = "merge_split",
     ):
         """Compute the optimum segment widths based on residual of the dynamics in each segment.
 
@@ -1743,7 +2324,7 @@ class mpopt_h_adaptive(mpopt):
         for phase in range(self._ocp.n_phases):
             max_residual = max(
                 [
-                    np.abs(err.full()).max() if err != None else 0
+                    abs(np.array(err)).max() if err is not None else 0
                     for err in residuals[phase]
                 ]
             )
@@ -1788,7 +2369,8 @@ class mpopt_h_adaptive(mpopt):
         """
         if method == "merge_split":
             max_residuals = [
-                np.abs(err.full()).max() if err != None else 0 for err in residuals
+                np.abs(np.array(err)).max() if err is not None else 0
+                for err in residuals
             ]
 
             return self.merge_split_segments_based_on_residuals(
@@ -1797,7 +2379,7 @@ class mpopt_h_adaptive(mpopt):
         elif method == "equal_area":
             residual_1D = np.concatenate(
                 [
-                    np.linalg.norm(err.full(), 2, axis=1) if err != None else [0]
+                    np.linalg.norm(np.array(err), 2, axis=1) if err is not None else [0]
                     for err in residuals
                 ]
             )
@@ -1813,8 +2395,7 @@ class mpopt_h_adaptive(mpopt):
 
     @staticmethod
     def get_roots_wrt_equal_area(residuals, n_segments):
-        """
-        """
+        """"""
         n_points = len(residuals)
         areas = [0.5 * (residuals[i] + residuals[i + 1]) for i in range(n_points - 1)]
         cumulative_area = np.append(0, np.cumsum(areas))
@@ -1921,7 +2502,7 @@ class mpopt_h_adaptive(mpopt):
         for phase in range(self._ocp.n_phases):
             max_residual = max(
                 [
-                    np.abs(err.full()).max() if err != None else 0
+                    np.abs(np.array(err)).max() if err is not None else 0
                     for err in residuals[phase]
                 ]
             )
@@ -1940,11 +2521,11 @@ class mpopt_h_adaptive(mpopt):
                 continue
 
             trajectories = self.init_trajectories(phase)
-            x, u, t, t0, tf = trajectories(solution["x"], self._nlp_sw_params)
+            x, u, t, t0, tf, a = trajectories(solution["x"], self._nlp_sw_params)
             t0, tf = np.concatenate(t0.full()), np.concatenate(tf.full())
             target_nodes = self.get_residual_grid_taus(phase)
             target_grid = self.get_interpolated_time_grid(
-                t, target_nodes, self.poly_orders
+                t, target_nodes, self.poly_orders, self.tau0, self.tau1
             )
             du_orig = ca.mtimes(self._compD, u)
             time_at_max_slope = self.compute_time_at_max_values(
@@ -2017,8 +2598,7 @@ class mpopt_h_adaptive(mpopt):
 
     @staticmethod
     def compute_segment_widths_at_times(times, n_segments, t0, tf):
-        """Compute seg_width fractions corresponding to given times and number of segments
-        """
+        """Compute seg_width fractions corresponding to given times and number of segments"""
         n_points_available = len(times)
         segment_widths = [None] * n_segments
         if n_points_available > (n_segments - 2):
@@ -2050,175 +2630,6 @@ class mpopt_h_adaptive(mpopt):
         segment_widths = np.array(segment_widths) / (tf - t0)
 
         return segment_widths
-
-    def get_dynamics_residuals(self, solution):
-        """Compute residual of the system dynamics at given taus (Normalized [0, 1]) by interpolating the
-        given solution onto a fixed grid consisting of single segment per phase with
-         roots at given target_nodes.
-
-        args:
-            :grid_type: target grid type (normalized between 0 and 1)
-            :solution: solution of the NLP as reported by the solver
-            :options: Options for the target grid
-
-        returns:
-            :residuals: residual vector for the dynamics at the given taus
-        """
-        residuals, ti = [None] * self._ocp.n_phases, [None] * self._ocp.n_phases
-        for phase in range(self._ocp.n_phases):
-            target_nodes = self.get_residual_grid_taus(phase)
-
-            ti[phase], residuals[phase] = self.get_dynamics_residuals_single_phase(
-                solution, phase, target_nodes=target_nodes
-            )
-
-        return ti, residuals
-
-    def get_dynamics_residuals_single_phase(
-        self, solution, phase: int = 0, target_nodes: List = None
-    ):
-        """Compute residual of the system dynamics at given taus (Normalized [0, 1]) by interpolating the
-        given solution onto a fixed grid consisting of single segment per phase with
-         roots at given target_nodes.
-
-        args:
-            :target_nodes: target grid nodes (normalized between 0 and 1)
-            :solution: solution of the NLP as reported by the solver
-
-        returns:
-            :residuals: residual vector for the dynamics at the given taus
-        """
-        xi, ui, ti, Dxi, Dui, taus_grid = self.interpolate_single_phase(
-            solution, phase, target_nodes=target_nodes, options={}
-        )
-        seg_widths = self._nlp_sw_params[
-            self.n_segments * phase : self.n_segments * (phase + 1)
-        ]
-        index = 0
-        n_taus = [len(taus) for taus in taus_grid]
-        residual_phase = [None] * self.n_segments
-        for seg in range(self.n_segments):
-            taus = taus_grid[seg]
-            f = [None] * n_taus[seg]
-            for i, tau in enumerate(taus):
-                f[i] = self._ocp.dynamics[phase](
-                    xi[index, :].T / self._ocp.scale_x,
-                    ui[index, :].T / self._ocp.scale_u,
-                    ti[index],
-                )
-                index += 1
-            start, end = sum(n_taus[:seg]), sum(n_taus[: (seg + 1)])
-            if start == end:
-                continue
-            h_seg = (ti[-1] - ti[0]) / (self.tau1 - self.tau0) * seg_widths[seg]
-            F = np.array(f) * self._ocp.scale_x  # numpy multiplication
-            residual_phase[seg] = Dxi[start:end, :] - h_seg * F
-
-        return ti, residual_phase
-
-    @staticmethod
-    def compute_interpolation_taus_corresponding_to_original_grid(
-        nodes_req, seg_widths
-    ):
-        """Compute the taus on original solution grid corresponding to the required interpolation nodes
-
-        args:
-            :nodes_req: target_nodes
-            :seg_widths: width of the segments whose sum equal 1
-
-        returns:
-            :taus: List of taus in each segment corresponding to nodes_req on target_grid
-        """
-        cumulative_sw = np.append(0, np.cumsum(seg_widths))
-        n_segments = len(seg_widths)
-
-        interp_taus = [None] * n_segments
-        for i, seg in enumerate(seg_widths):
-            # Starting node (0) won't be part of interpolation
-            interp_taus[i] = nodes_req[nodes_req > cumulative_sw[i]]
-            # Terminal state is included
-            interp_taus[i] = interp_taus[i][interp_taus[i] <= cumulative_sw[i + 1]]
-            # Normalize the taus to 1 by dividing with segment width
-            interp_taus[i] = (interp_taus[i] - cumulative_sw[i]) / seg
-
-        return interp_taus
-
-    @staticmethod
-    def get_interpolated_time_grid(t_orig, taus: np.ndarray, poly_orders: np.ndarray):
-        """Update the time vector with the interpolated grid across each segment of
-        the original optimization problem
-
-        args:
-            :t_orig: Time grid of the original optimization problem (unscaled/scaled)
-            :taus: grid of the interpolation taus across each segment of the original OCP
-            :poly_orders: Order of the polynomials across each segment used in solving OCP
-
-        returns:
-            :time: Interpolated time grid
-        """
-        # Get the time corresponding to the segment start and end in the original opt. problem
-        t_seg = [t_orig[0]] + [
-            t_orig[sum(poly_orders[: (i + 1)])] for i in range(len(poly_orders))
-        ]
-
-        # Interpolate the original time grid
-        time_grid = [
-            t_seg[i] + (t_seg[i + 1] - t_seg[i]) * taus[i]
-            for i in range(len(t_seg) - 1)
-        ]
-
-        return ca.vertcat(*time_grid)
-
-    def interpolate_single_phase(
-        self, solution, phase: int, target_nodes: np.ndarray = None, options: Set = {}
-    ):
-        """Interpolate the solution at given taus
-
-        args:
-            :solution: solution as reported by nlp solver
-            :phase: index of the phase
-            :target_nodes: List of nodes at which interpolation is performed
-
-        returns:
-            Tuple - (X, DX, DU)
-                X - Interpolated states
-                DX - Derivative of the interpolated states based on PS polynomials
-                DU - Derivative of the interpolated controls based on PS polynomials
-        """
-        trajectories = self.init_trajectories(phase)
-        x, u, t, t0, tf = trajectories(solution["x"], self._nlp_sw_params)
-        t0, tf = np.concatenate(t0.full()), np.concatenate(tf.full())
-
-        if target_nodes is None:
-            target_nodes = self.get_residual_grid_taus(
-                phase=phase, grid_type="mid-points"
-            )
-            ti = ca.vertcat(*[(t[i] + t[i + 1]) / 2.0 for i in range(t.shape[0] - 1)])
-        else:
-            ti = self.get_interpolated_time_grid(t, target_nodes, self.poly_orders)
-
-        comp_interpolation_I = self.collocation.get_composite_interpolation_matrix(
-            target_nodes, self.poly_orders
-        )
-        comp_interpolation_D = self.collocation.get_composite_interpolation_Dmatrix_at(
-            target_nodes, self.poly_orders
-        )
-
-        Xi = ca.mtimes(comp_interpolation_I, x)
-        Ui = ca.mtimes(comp_interpolation_I, u)
-        DXi = ca.mtimes(comp_interpolation_D, x)
-        DUi = ca.mtimes(comp_interpolation_D, u)
-
-        # Plot to check if the interpolation is good
-        if "plot" in options:
-            fig, axs = post_process.plot_all(
-                x.full(), u.full(), t.full(), tics=["."] * 15
-            )
-            fig, axs = post_process.plot_all(
-                Xi.full(), Ui.full(), ti, fig=fig, axs=axs, legend=False
-            )
-
-        return (Xi, Ui, ti, DXi, DUi, target_nodes)
 
 
 class mpopt_adaptive(mpopt):
@@ -2290,6 +2701,7 @@ class mpopt_adaptive(mpopt):
             self.U[phase][:],
             self.t0[phase],
             self.tf[phase],
+            self.A[:, phase],
             self.seg_widths[:, phase],
         )
 
@@ -2307,6 +2719,7 @@ class mpopt_adaptive(mpopt):
                 np.repeat(self._ocp.lbu[phase] * self._ocp.scale_u, self._Npoints),
                 self._ocp.lbt0[phase] * self._ocp.scale_t,
                 self._ocp.lbtf[phase] * self._ocp.scale_t,
+                self._ocp.lba[phase] * self._ocp.scale_a,
                 [self.lbh[phase]] * self.n_segments,
             ]
         )
@@ -2316,6 +2729,7 @@ class mpopt_adaptive(mpopt):
                 np.repeat(self._ocp.ubu[phase] * self._ocp.scale_u, self._Npoints),
                 self._ocp.ubt0[phase] * self._ocp.scale_t,
                 self._ocp.ubtf[phase] * self._ocp.scale_t,
+                self._ocp.uba[phase] * self._ocp.scale_a,
                 [self.ubh[phase]] * self.n_segments,
             ]
         )
@@ -2335,20 +2749,25 @@ class mpopt_adaptive(mpopt):
         returns:
             solution : initialized solution for given phase
         """
-        z0 = [None] * 5
+        z0 = [None] * 6
         x00 = self._ocp.x00[phase] * self._ocp.scale_x
         xf0 = self._ocp.xf0[phase] * self._ocp.scale_x
         u00 = self._ocp.u00[phase] * self._ocp.scale_u
         uf0 = self._ocp.uf0[phase] * self._ocp.scale_u
         t00 = self._ocp.t00[phase] * self._ocp.scale_t
         tf0 = self._ocp.tf0[phase] * self._ocp.scale_t
+        a0 = self._ocp.a0[phase] * self._ocp.scale_a
 
         # Linear interpolation of states
         z0[0] = np.concatenate(
             np.array(
                 [
                     x00 + (xf0 - x00) / (tf0 - t00) * (t - t00)
-                    for t in np.linspace(t00, tf0, self._Npoints,)
+                    for t in np.linspace(
+                        t00,
+                        tf0,
+                        self._Npoints,
+                    )
                 ]
             ).T
         )
@@ -2357,18 +2776,21 @@ class mpopt_adaptive(mpopt):
             np.array(
                 [
                     u00 + (uf0 - u00) / (tf0 - t00) * (t - t00)
-                    for t in np.linspace(t00, tf0, self._Npoints,)
+                    for t in np.linspace(
+                        t00,
+                        tf0,
+                        self._Npoints,
+                    )
                 ]
             )
         )
-        z0[2], z0[3] = t00, tf0
-        z0[4] = [1.0 / self.n_segments] * self.n_segments
+        z0[2], z0[3], z0[4] = t00, tf0, a0
+        z0[5] = [1.0 / self.n_segments] * self.n_segments
 
         return np.concatenate(z0)
 
     def get_nlp_constrains_for_segment_widths(self, phase: int = 0) -> Tuple:
-        """Add additional constraints on segment widths to the original NLP
-        """
+        """Add additional constraints on segment widths to the original NLP"""
         sw, swmin, swmax = [], [], []
         # Sum equals 1 (Segment width is normalized)
         sw.append(ca.sum1(self.seg_widths[:, phase]) - 1.0)
@@ -2419,6 +2841,7 @@ class mpopt_adaptive(mpopt):
 
         # Mid point residuals
         if self.mid_residuals:
+            dynamics = self._ocp.get_dynamics(phase)
             Dxi = ca.mtimes(comp_interpolation_D, self.X[phase])
             index = 0
             n_taus = [len(taus) for taus in taus_mid]
@@ -2438,10 +2861,11 @@ class mpopt_adaptive(mpopt):
                         * ca.mtimes(
                             self._scX,
                             ca.vertcat(
-                                *self._ocp.dynamics[phase](
+                                *dynamics(
                                     xi[index, :].T / self._ocp.scale_x,
                                     ui[index, :].T / self._ocp.scale_u,
                                     ti[index],
+                                    self.A[:, phase] / self._ocp.scale_a,
                                 )
                             ),
                         ).T
@@ -2593,10 +3017,15 @@ class mpopt_adaptive(mpopt):
         """
         x = self.X[phase]
         u = self.U[phase]
+        a = self.A[:, phase]
         t0, tf = self.t0[phase] / self._ocp.scale_t, self.tf[phase] / self._ocp.scale_t
         t = ca.vertcat(*self.time_grid[phase])
         trajectories = ca.Function(
-            "x_traj", [self.Z], [x, u, t, t0, tf], ["z"], ["x", "u", "t", "t0", "tf"],
+            "x_traj",
+            [self.Z],
+            [x, u, t, t0, tf, a],
+            ["z"],
+            ["x", "u", "t", "t0", "tf", "a"],
         )
 
         return trajectories
@@ -2623,6 +3052,7 @@ class mpopt_adaptive(mpopt):
         options = {
             "nx": self._ocp.nx,
             "nu": self._ocp.nu,
+            "na": self._ocp.na,
             "nPh": self._ocp.n_phases,
             "ns": self.n_segments,
             "poly_orders": self.poly_orders,
@@ -2630,6 +3060,7 @@ class mpopt_adaptive(mpopt):
             "phases_to_plot": self._ocp.phases_to_plot,
             "scale_x": self._ocp.scale_x,
             "scale_u": self._ocp.scale_u,
+            "scale_a": self._ocp.scale_a,
             "scale_t": self._ocp.scale_t,
             "scaling": scaling,
             "colloc_scheme": self.colloc_scheme,
@@ -2669,7 +3100,12 @@ class OCP:
     UB_TERMINAL_CONSTRAINTS = 0
 
     def __init__(
-        self: "OCP", n_states: int = 1, n_controls: int = 1, n_phases: int = 1, **kwargs
+        self: "OCP",
+        n_states: int = 1,
+        n_controls: int = 1,
+        n_phases: int = 1,
+        n_params=0,
+        **kwargs,
     ):
         """Initialize OCP object
         For all phases, number of states and controls are assumed to be same.
@@ -2678,6 +3114,7 @@ class OCP:
         args:
             :n_states: number of state variables in the OCP
             :n_controls: number of control variables in the OCP
+            :n_params: number of algebraic parameters in each phase
             :n_phases: number of phases in the OCP
 
         returns:
@@ -2685,6 +3122,7 @@ class OCP:
         """
         self.nx = n_states
         self.nu = n_controls
+        self.na = n_params
         self.n_phases = n_phases
 
         # Define OCP terms
@@ -2709,6 +3147,7 @@ class OCP:
         # Scaling
         self.scale_x = np.array([1.0] * self.nx)
         self.scale_u = np.array([1.0] * self.nu)
+        self.scale_a = np.array([1.0] * self.na)
         self.scale_t = 1.0
 
         # Initial guess
@@ -2718,12 +3157,15 @@ class OCP:
         self.uf0 = np.array([[0.0] * self.nu for _ in range(self.n_phases)])
         self.t00 = np.array([[0.0]] * self.n_phases)
         self.tf0 = np.array([[1.0]] * self.n_phases)
+        self.a0 = np.array([[0.0] * self.na for _ in range(self.n_phases)])
 
         # Default bounds
         self.lbx = np.array([[-np.inf] * self.nx for _ in range(self.n_phases)])
         self.ubx = np.array([[np.inf] * self.nx for _ in range(self.n_phases)])
         self.lbu = np.array([[-np.inf] * self.nu for _ in range(self.n_phases)])
         self.ubu = np.array([[np.inf] * self.nu for _ in range(self.n_phases)])
+        self.lba = np.array([[-np.inf] * self.na for _ in range(self.n_phases)])
+        self.uba = np.array([[np.inf] * self.na for _ in range(self.n_phases)])
         self.lbt0 = np.array([[0.0]] * self.n_phases)
         self.ubt0 = np.array([[np.inf]] * self.n_phases)
         # First phase always starts at time zero. Hence, both lower and upper
@@ -2761,7 +3203,75 @@ class OCP:
         returns:
             :dynamics: system dynamics function with arguments x, u, t, a
         """
+        if self.na == 0:
+            dynamics = lambda x, u, t, a: self.dynamics[phase](x, u, t)
+            return dynamics
+
         return self.dynamics[phase]
+
+    def get_path_constraints(self, phase: int = 0):
+        """Get path constraints function for the given phase
+
+        args:
+            :phase: index of the phase (starting from 0)
+
+        returns:
+            :path_constraints: path constraints function with arguments x, u, t, a
+        """
+        if self.na == 0:
+            path_constraints = lambda x, u, t, a: self.path_constraints[phase](x, u, t)
+            return path_constraints
+
+        return self.path_constraints[phase]
+
+    def get_terminal_constraints(self, phase: int = 0):
+        """Get terminal_constraints function for the given phase
+
+        args:
+            :phase: index of the phase (starting from 0)
+
+        returns:
+            :terminal_constraints: system terminal_constraints function with arguments x, u, t, a
+        """
+        if self.na == 0:
+            terminal_constraints = lambda xf, tf, x0, t0, a: self.terminal_constraints[
+                phase
+            ](xf, tf, x0, t0)
+            return terminal_constraints
+
+        return self.terminal_constraints[phase]
+
+    def get_running_costs(self, phase: int = 0):
+        """Get running_costs function for the given phase
+
+        args:
+            :phase: index of the phase (starting from 0)
+
+        returns:
+            :running_costs: system running_costs function with arguments x, u, t, a
+        """
+        if self.na == 0:
+            running_costs = lambda x, u, t, a: self.running_costs[phase](x, u, t)
+            return running_costs
+
+        return self.running_costs[phase]
+
+    def get_terminal_costs(self, phase: int = 0):
+        """Get terminal_costs function for the given phase
+
+        args:
+            :phase: index of the phase (starting from 0)
+
+        returns:
+            :terminal_costs: system terminal_costs function with arguments x, u, t, a
+        """
+        if self.na == 0:
+            terminal_costs = lambda xf, tf, x0, t0, a: self.terminal_costs[phase](
+                xf, tf, x0, t0
+            )
+            return terminal_costs
+
+        return self.terminal_costs[phase]
 
     def has_path_constraints(self, phase: int = 0) -> bool:
         """Check if given phase has path constraints in given OCP
@@ -2772,8 +3282,17 @@ class OCP:
         return:
             :status: bool (True/False)
         """
+        path_constraints = self.path_constraints[phase]
+
+        if self.na == 0:
+            return (
+                path_constraints(self.x00[phase], self.u00[phase], self.t00[phase])
+                is not None
+            )
         return (
-            self.path_constraints[phase](self.x00[phase], self.u00[phase], 0)
+            path_constraints(
+                self.x00[phase], self.u00[phase], self.t00[phase], self.a0[phase]
+            )
             is not None
         )
 
@@ -2786,14 +3305,31 @@ class OCP:
         return:
             :status: bool (True/False)
         """
+        terminal_constraints = self.terminal_constraints[phase]
+
+        if self.na == 0:
+            return (
+                terminal_constraints(
+                    self.xf0[phase],
+                    self.tf0[phase],
+                    self.x00[phase],
+                    self.t00[phase],
+                )
+                is not None
+            )
         return (
-            self.terminal_constraints[phase](self.xf0[phase], 0, self.x00[phase], 0)
+            terminal_constraints(
+                self.xf0[phase],
+                self.tf0[phase],
+                self.x00[phase],
+                self.t00[phase],
+                self.a0[phase],
+            )
             is not None
         )
 
     def validate(self) -> None:
-        """Validate dimensions and initialization of attributes
-        """
+        """Validate dimensions and initialization of attributes"""
         assert self.n_phases > 0
 
         assert len(self.dynamics) == self.n_phases
@@ -2803,13 +3339,23 @@ class OCP:
         assert len(self.terminal_constraints) == self.n_phases
 
         for phase in range(self.n_phases):
-            x, u, t = self.x00[phase], self.u00[phase], 0
-            assert len(self.dynamics[phase](x, u, t)) == self.nx
-            assert self.terminal_costs[phase](x, t, x, t) is not None
-            assert self.running_costs[phase](x, u, t) is not None
+            x, u, t, a = (
+                self.x00[phase],
+                self.u00[phase],
+                self.t00[phase],
+                self.a0[phase],
+            )
+            dynamics = self.get_dynamics(phase)
+            terminal_costs = self.get_terminal_costs(phase)
+            running_costs = self.get_running_costs(phase)
+            path_constraints = self.get_path_constraints(phase)
+            terminal_constraints = self.get_terminal_constraints(phase)
+            assert len(dynamics(x, u, t, a)) == self.nx
+            assert terminal_costs(x, t, x, t, a) is not None
+            assert running_costs(x, u, t, a) is not None
+            pc = path_constraints(x, u, t, a)
+            tc = terminal_constraints(x, t, x, t, a)
 
-            pc = self.path_constraints[phase](x, u, t)
-            tc = self.terminal_constraints[phase](x, t, x, t)
             if pc is not None:
                 assert len(pc) > 0
             if tc is not None:
@@ -2817,11 +3363,14 @@ class OCP:
 
         assert len(self.scale_x) == self.nx
         assert len(self.scale_u) == self.nu
+        assert len(self.scale_a) == self.na
 
         assert self.x00.shape == (self.n_phases, self.nx)
         assert self.xf0.shape == (self.n_phases, self.nx)
         assert self.u00.shape == (self.n_phases, self.nu)
         assert self.uf0.shape == (self.n_phases, self.nu)
+        assert self.a0.shape == (self.n_phases, self.na)
+        assert self.a0.shape == (self.n_phases, self.na)
         assert self.t00.shape == (self.n_phases, 1)
         assert self.tf0.shape == (self.n_phases, 1)
 
@@ -2829,6 +3378,8 @@ class OCP:
         assert self.ubx.shape == (self.n_phases, self.nx)
         assert self.lbu.shape == (self.n_phases, self.nu)
         assert self.ubu.shape == (self.n_phases, self.nu)
+        assert self.lba.shape == (self.n_phases, self.na)
+        assert self.uba.shape == (self.n_phases, self.na)
         assert self.lbt0.shape == (self.n_phases, 1)
         assert self.ubt0.shape == (self.n_phases, 1)
         assert self.lbtf.shape == (self.n_phases, 1)
@@ -2846,6 +3397,8 @@ class OCP:
                 assert self.lbx[phase][i] <= self.ubx[phase][i]
             for i in range(self.nu):
                 assert self.lbu[phase][i] <= self.ubu[phase][i]
+            for i in range(self.na):
+                assert self.lba[phase][i] <= self.uba[phase][i]
             assert self.lbt0[phase] <= self.ubt0[phase]
             assert self.lbtf[phase] <= self.ubtf[phase]
             if phase < self.n_phases - 1:
@@ -2863,6 +3416,9 @@ class Collocation:
     Hence, computer precision can affect these derivative calculations
 
     """
+
+    D_MATRIX_METHOD = "symbolic"  # "symbolic"
+    TVAR = ca.SX.sym("t")
 
     def __init__(
         self,
@@ -2944,11 +3500,22 @@ class Collocation:
         args:
             :poly_orders: List of polynomial degrees used in collocation
         """
-        for degree in self.poly_orders:
+        for degree in poly_orders:
             self.roots[degree] = self._taus_fn(degree)
             self.polys[degree] = self.poly_fn(self.roots[degree])
 
-    def get_diff_matrix(self, degree, taus: np.ndarray = None):
+    def init_polynomials_with_customized_roots(self, roots_dict: Dict = None) -> None:
+        """
+        Initialize polynomials with predefined roots
+
+        args:
+            :roots_dict: Dictionary with a key for the roots and polys (Ideally not numbers as they are already taken by the regular polynominals)
+        """
+        for key in roots_dict:
+            self.roots[key] = roots_dict[key]
+            self.polys[key] = self.poly_fn(self.roots[key])
+
+    def get_diff_matrix(self, key, taus: np.ndarray = None, order: int = 1):
         """Get differentiation matrix corresponding to given basis polynomial degree
 
         args:
@@ -2958,33 +3525,62 @@ class Collocation:
         returns:
             :D: Differentiation matrix
         """
-        if (degree not in self.roots) or (degree not in self.polys):
-            self.init_polynomials([degree])
-        eval_D_at = self.roots[degree] if taus is None else taus
+        if (key not in self.roots) or (key not in self.polys):
+            self.init_polynomials([key])
+        eval_D_at = self.roots[key] if taus is None else taus
         n_i = len(eval_D_at)
-        n_j = len(self.polys[degree])
+        n_j = len(self.polys[key])
         D = ca.DM.zeros((n_i, n_j))
-        for j, p in enumerate(self.polys[degree]):
-            pder = np.polyder(p)
+        for j, p in enumerate(self.polys[key]):
+            if self.D_MATRIX_METHOD == "symbolic":
+                if order == 1:
+                    pder = ca.Function("pder", [self.TVAR], [ca.gradient(p, self.TVAR)])
+                elif order == 2:
+                    pder = ca.Function(
+                        "pder1",
+                        [self.TVAR],
+                        [ca.gradient(ca.gradient(p, self.TVAR), self.TVAR)],
+                    )
+            else:
+                if order == 1:
+                    pder = np.polyder(p)
+                elif order == 2:
+                    pder = np.polyder(np.polyder(p))
             for i in range(n_i):
                 D[i, j] = pder(eval_D_at[i])
 
         return D
 
-    def get_quadrature_weights(self, degree):
+    def get_quadrature_weights(self, key, tau0=None, tau1=None):
         """Get quadrature weights corresponding to given basis polynomial degree
 
         args:
             :degree: order of the polynomial used in collocation
         """
-        if (degree not in self.roots) or (degree not in self.polys):
-            self.init_polynomials([degree])
+        if (key not in self.roots) or (key not in self.polys):
+            self.init_polynomials([key])
 
-        n = len(self.roots[degree])
+        if tau0 is None:
+            tau0 = self.tau0
+        if tau1 is None:
+            tau1 = self.tau1
+
+        n = len(self.roots[key])
         quad_weights = ca.DM.zeros(n)
         for i in range(n):
-            pint = np.polyint(self.polys[degree][i])
-            quad_weights[i] = pint(1.0)
+            if self.D_MATRIX_METHOD == "symbolic":
+                pint = ca.integrator(
+                    "pint",
+                    "idas",
+                    {"x": ca.SX.sym("x"), "t": self.TVAR, "ode": self.polys[key][i]},
+                    {"t0": tau0, "tf": tau1},
+                )
+                quad_weights[i] = pint(x0=0)[
+                    "xf"
+                ]  # By default integrator evaluates the final value at tf
+            else:
+                pint = np.polyint(self.polys[key][i])
+                quad_weights[i] = pint(tau1) - pint(tau0)
 
         return quad_weights
 
@@ -3002,13 +3598,17 @@ class Collocation:
         n_i = len(taus)  # rows
         C = ca.DM.zeros((n_i, n_j))
         for j, p in enumerate(self.polys[degree]):
+            if self.D_MATRIX_METHOD == "symbolic":
+                poly = ca.Function("p", [self.TVAR], [p])
+            else:
+                poly = p
             for i in range(n_i):
-                C[i, j] = p(taus[i])
+                C[i, j] = poly(taus[i])
 
         return C
 
-    def get_diff_matrices(self, poly_orders: List = None):
-        """Get cdifferentiation matrices for given collocation approximation
+    def get_diff_matrices(self, poly_orders: List = None, order: int = 1):
+        """Get differentiation matrices for given collocation approximation
 
         args:
             :poly_orders: order of the polynomials used in collocation with each element representing one segment
@@ -3016,19 +3616,18 @@ class Collocation:
         unique_polys = self.unique_polys if poly_orders is None else set(poly_orders)
         diff_mat_dict = {}
         for degree in unique_polys:
-            diff_mat_dict[degree] = self.diff_matrix_fn(self, degree)
+            diff_mat_dict[degree] = self.diff_matrix_fn(self, degree, order=order)
 
         return diff_mat_dict
 
-    def get_interpolation_Dmatrices_at(self, taus, poly_orders: List = None):
+    def get_interpolation_Dmatrices_at(self, taus, keys: List = None, order: int = 1):
         """Get differentiation matrices at the interpolated nodes (taus), different
         from the collocation nodes.
 
         args:
             :taus: List of scaled taus (between 0 and 1) with length of list equal
                 to length of poly_orders (= number of segments)
-            :poly_orders: order of the polynomials used in collocation with each
-                element representing one segment
+            :keys: keys of the roots and polys Dict element containing roots of the legendre polynomials and polynomials themselves
 
         returns:
             :Dict : (key, value)
@@ -3036,26 +3635,31 @@ class Collocation:
                 value - Differentiation matrix(C) such that DX_tau = D*X_colloc where
                     X_colloc is the values of states at the collocation nodes
         """
-        if poly_orders is None:
-            poly_orders = self.poly_orders
+        if keys is None:
+            keys = self.poly_orders
         basis_Dmats = {}
-        for i, degree in enumerate(poly_orders):
-            basis_Dmats[i] = self.diff_matrix_fn(self, degree, taus=taus[i])
+        for i, key in enumerate(keys):
+            basis_Dmats[i] = self.diff_matrix_fn(self, key, taus=taus[i], order=order)
 
         return basis_Dmats
 
-    def get_quad_weight_matrices(self, poly_orders: List = None):
+    def get_quad_weight_matrices(self, keys: List = None, tau0=None, tau1=None):
         """Get quadrature weights for given collocation approximation
 
         args:
-            :poly_orders: order of the polynomials used in collocation with each
-                element representing one segment
+            :keys: keys of the Dict element (roots and polys), Normally these keys are equal to the order of the polynomial
 
         """
-        unique_polys = self.unique_polys if poly_orders is None else set(poly_orders)
+        unique_keys = self.unique_polys if keys is None else set(keys)
         quad_mats = {}
-        for degree in unique_polys:
-            quad_mats[degree] = self.quad_matrix_fn(self, degree)
+
+        if tau0 == None:
+            tau0 = self.tau0
+        if tau1 == None:
+            tau1 = self.tau1
+
+        for key in unique_keys:
+            quad_mats[key] = self.quad_matrix_fn(self, key, tau0=tau0, tau1=tau1)
 
         return quad_mats
 
@@ -3083,8 +3687,8 @@ class Collocation:
 
         return basis_mats
 
-    @staticmethod
-    def get_lagrange_polynomials(roots):
+    @classmethod
+    def get_lagrange_polynomials(self, roots):
         """Get basis polynomials given the collocation nodes
 
         args:
@@ -3093,16 +3697,27 @@ class Collocation:
         """
         n = len(roots)
         polys = [None] * n
-        for j in range(n):
-            p = np.poly1d([1])
-            for i in range(n):
-                if i != j:
-                    p *= np.poly1d([1, -roots[i]]) / (roots[j] - roots[i])
-            polys[j] = p
+
+        if self.D_MATRIX_METHOD == "symbolic":
+            for j in range(n):
+                p = ca.DM(1)
+                for i in range(n):
+                    if i != j:
+                        p *= (self.TVAR - roots[i]) / (roots[j] - roots[i])
+                polys[j] = p
+        else:
+            for j in range(n):
+                p = np.poly1d([1])
+                for i in range(n):
+                    if i != j:
+                        p *= np.poly1d([1, -roots[i]]) / (roots[j] - roots[i])
+                polys[j] = p
 
         return polys
 
-    def get_composite_differentiation_matrix(self, poly_orders: List = None):
+    def get_composite_differentiation_matrix(
+        self, poly_orders: List = None, order: int = 1
+    ):
         """Get composite differentiation matrix for given collocation approximation
 
         args:
@@ -3110,7 +3725,7 @@ class Collocation:
                 element representing one segment
 
         """
-        D = self.get_diff_matrices(poly_orders)
+        D = self.get_diff_matrices(poly_orders, order=order)
         if poly_orders is None:
             poly_orders = self.poly_orders
         n_nodes = sum(poly_orders) + 1
@@ -3126,7 +3741,9 @@ class Collocation:
                 ] = D[p][1:, :]
         return comp_diff_matrix
 
-    def get_composite_quadrature_weights(self, poly_orders: List = None):
+    def get_composite_quadrature_weights(
+        self, poly_orders: List = None, tau0=None, tau1=None
+    ):
         """Get composite quadrature weights for given collocation approximation
 
         args:
@@ -3136,7 +3753,13 @@ class Collocation:
         """
         if poly_orders is None:
             poly_orders = self.poly_orders
-        quad_mats = self.get_quad_weight_matrices(poly_orders)
+
+        if tau0 is None:
+            tau0 = self.tau0
+        if tau1 is None:
+            tau1 = self.tau1
+
+        quad_mats = self.get_quad_weight_matrices(poly_orders, tau0=tau0, tau1=tau1)
         comp_quad_weights = ca.vertcat(
             *([quad_mats[poly_orders[0]][0]] + [quad_mats[p][1:] for p in poly_orders])
         ).T
@@ -3170,11 +3793,14 @@ class Collocation:
                 continue
             start_row, start_col = sum(n_taus[:i]), sum(poly_orders[:i])
             comp_matrix[
-                start_row : start_row + n_taus[i], start_col : start_col + (1 + p),
+                start_row : start_row + n_taus[i],
+                start_col : start_col + (1 + p),
             ] = C[i]
         return comp_matrix
 
-    def get_composite_interpolation_Dmatrix_at(self, taus, poly_orders: List = None):
+    def get_composite_interpolation_Dmatrix_at(
+        self, taus, poly_orders: List = None, order: int = 1
+    ):
         """Get differentiation matrix corresponding to given basis polynomial degree
         at nodes different from collocation nodes
 
@@ -3188,7 +3814,7 @@ class Collocation:
             :D: Composite differentiation matrix
 
         """
-        D = self.get_interpolation_Dmatrices_at(taus, poly_orders)
+        D = self.get_interpolation_Dmatrices_at(taus, keys=poly_orders, order=order)
         if poly_orders is None:
             poly_orders = self.poly_orders
         n_nodes = sum(poly_orders) + 1
@@ -3202,7 +3828,8 @@ class Collocation:
                 continue
             start_row, start_col = sum(n_taus[:i]), sum(poly_orders[:i])
             comp_Dmatrix[
-                start_row : start_row + n_taus[i], start_col : start_col + (1 + p),
+                start_row : start_row + n_taus[i],
+                start_col : start_col + (1 + p),
             ] = D[i]
         return comp_Dmatrix
 
@@ -3210,10 +3837,10 @@ class Collocation:
 class CollocationRoots:
     """Functionality related to commonly used gauss quadrature schemes such as
 
-        Legendre-Gauss (LG)
-        Legendre-Gauss-Radau (LGR)
-        Legendre-Gauss-Lobatto (LGL)
-        Chebyshev-Gauss-Lobatto (CGL)
+    Legendre-Gauss (LG)
+    Legendre-Gauss-Radau (LGR)
+    Legendre-Gauss-Lobatto (LGL)
+    Chebyshev-Gauss-Lobatto (CGL)
     """
 
     # Min and max for the roots (Not yet implemented)
@@ -3355,7 +3982,7 @@ class CollocationRoots:
 def solve(
     ocp, n_segments=1, poly_orders=9, scheme="LGR", plot=True, solve_dict: Dict = dict()
 ):
-    """ Solve OCP by creating optimizer and process results
+    """Solve OCP by creating optimizer and process results
 
     args:
         ocp: well defined OCP object
@@ -3373,3 +4000,292 @@ def solve(
     post = mpo.process_results(solution, plot=plot)
 
     return (mpo, post)
+
+
+def get_segment_boundaries():
+    """"""
+    pass
+
+
+class mpopt_ph_adaptive(mpopt):
+    """Multi-stage Optimal control problem (OCP) solver which implements iterative
+    procedure to refine the segment width and polynomial order in each phase adaptively
+
+    Examples :
+        >>> # Moon lander problem
+        >>> from mpopt import mp
+        >>> ocp = mp.OCP(n_states=2, n_controls=1, n_params=0, n_phases=1)
+        >>> ocp.dynamics[0] = lambda x, u, t, a: [x[1], u[0] - 1.5]
+        >>> ocp.running_costs[0] = lambda x, u, t, a: u[0]
+        >>> ocp.terminal_constraints[0] = lambda xf, tf, x0, t0, a: [xf[0], xf[1]]
+        >>> ocp.x00[0] = [10, -2]
+        >>> ocp.lbu[0] = 0; ocp.ubu[0] = 3
+        >>> ocp.lbtf[0] = 3; ocp.ubtf[0] = 5
+        >>> opt = mp.mpopt_ph_adaptive(ocp, n_segments=3, poly_orders=[2]*3)
+        >>> solution = opt.solve()
+        >>> post = opt.process_results(solution, plot=True)
+    """
+
+    _SEG_WIDTH_MIN = 1e-5
+    _SEG_WIDTH_MAX = 1
+
+    _TOL_SEG_WIDTH_CHANGE = 0.05  # < 5% change in width fraction (Converged)
+    _TOL_RESIDUAL = 1e-2
+
+    def __init__(
+        self: "mpopt_ph_adaptive",
+        problem: "OCP",
+        n_segments: int = 1,
+        poly_orders: List[int] = [9],
+        scheme: str = "LGR",
+        grid_type: str = "spectral",
+        max_residual: float = 1e-4,
+        poly_order_min: int = 3,
+        poly_order_max: int = 16,
+        seg_min: int = 1,
+        seg_max: int = 20,
+        n_grid_points: int = 20,
+        non_smooth_threshold: float = 1.05,
+    ):
+        """Initialize the optimizer
+        args:
+            n_segments: number of segments in each phase
+            poly_orders: degree of the polynomial in each segment
+            problem: instance of the OCP class
+        """
+        super().__init__(
+            problem=problem,
+            n_segments=n_segments,
+            poly_orders=poly_orders,
+            scheme=scheme,
+        )
+
+        # Check polynomial degree compatiability with default options
+        if min(self.poly_orders) < poly_order_min:
+            poly_order_min = min(self.poly_orders)
+        if max(self.poly_orders) > poly_order_max:
+            poly_order_max = max(self.poly_orders)
+
+        if n_segments < seg_min:
+            seg_min = n_segments
+        if n_segments > seg_max:
+            seg_max = n_segments
+
+        self.poly_order_min = poly_order_min
+        self.poly_order_max = poly_order_max
+        self._MAX_GRID_POINTS = n_grid_points
+        self._TOL_RESIDUAL = max_residual
+        self._GRID_TYPE = grid_type
+        self.max_residual = max_residual
+        self.n_grid_points = n_grid_points
+        self.max_segments = seg_max
+        self.min_segments = seg_min
+        self.non_smooth_threshold = non_smooth_threshold
+
+        # Segment width bounds : default values
+        self.lbh = [self._SEG_WIDTH_MIN for _ in range(self._ocp.n_phases)]
+        self.ubh = [self._SEG_WIDTH_MAX for _ in range(self._ocp.n_phases)]
+        self.tol_residual = [self._TOL_RESIDUAL for _ in range(self._ocp.n_phases)]
+        self.fig, self.axs = None, None
+        self.plot_residual_evolution = False
+        self.reset_mpopt()
+
+    @staticmethod
+    def get_abs_max_residual(residual):
+        """
+        Compute the segment wise maximum residual in each phase for each state
+
+        args:
+            :residual: Values of residuals in a list of lists (Phase -> segments)
+
+        returns:
+            max_phases:
+                Values of indices of maximum residuals in each segment of the phase for all phases
+        """
+        max_r_phases = [None] * len(residual)
+        for i_phase, r_phase in enumerate(residual):
+            max_r_phase = [None] * len(r_phase)
+            for i_seg, r_seg in enumerate(r_phase):
+                r_max_seg = abs(np.array(r_seg)).max(axis=0)
+                i_max_seg = abs(np.array(r_seg)).argmax(axis=0)
+                max_r_phase[i_seg] = [i_max_seg, r_max_seg]
+            max_r_phases[i_phase] = max_r_phase
+
+        return max_r_phases
+
+    def solve_ph(self, max_iter=1, grid_type=None, solve_dict: Dict = {}):
+        """Solve OCP using adaptive ph method
+
+        args: Options for the mpopt solver
+
+        returns:
+            :Solution: Solution for the ocp
+
+        """
+        # Custom definitions
+        def limit_poly_orders(poly_orders):
+            # Saturate poly orders between user specified limits
+            return [
+                min(max(self.poly_order_min, p), self.poly_order_max)
+                for p in poly_orders
+            ]
+
+        if grid_type is None:
+            grid_type = self.grid_type[0]
+        # ph-Adaptive algorithm (http://dx.doi.org/10.1016/j.jfranklin.2015.05.028)
+        nlp_sw_params = []  # Initialize
+        poly_orders = []
+        for iter_no in range(max_iter):
+            if iter_no > 0:
+                # Update Mesh for the next iteration
+                self._nlp_sw_params = np.hstack(nlp_sw_params)
+                solve_dict["nlp_sw_params"] = self._nlp_sw_params
+                self.poly_orders = np.hstack(poly_orders)
+                self.n_segments = self._nlp_sw_params.shape[0]
+
+            # ************************** Sparse solution ********************
+            # Step 1 : Solve the problem on initial mesh (Sparse for reference)
+
+            self.reset_mpopt()
+            solution = self.solve(reinitialize_nlp=True, **solve_dict)
+            # Mesh points in time in each segment of a given phase
+            # taus = np.array([self.collocation._taus_fn(deg) for deg in self.poly_orders])
+            # taus = [taus for phase in range(self._ocp.n_phases)]
+
+            # Step 2 : Compute the maximum residual in the states using gaussian quadrature of dynamics (Refer Anil V. Rao http://dx.doi.org/10.1016/j.jfranklin.2015.05.028)
+            time_r, residual_r = self.get_states_residuals(
+                solution, grid_type=grid_type, residual_type="relative", plot=False
+            )
+            max_residual = self.get_abs_max_residual(residual_r)
+
+            # Step-3: Check if the solution is acceptable, find segment with max residual
+            refine_phase = [False] * self._ocp.n_phases
+            abs_max_residual = 0
+
+            poly_orders = copy.deepcopy(self.poly_orders)
+            for i_phase, max_r_phase in enumerate(max_residual):
+                # Segment wise maximum value across all states
+                max_seg_residual = np.array(max_r_phase)[:, 1].max(axis=1)
+                if abs_max_residual < max_seg_residual.max():
+                    abs_max_residual = max_seg_residual.max()
+                status = max_seg_residual > self.max_residual
+                if status.any():
+                    # This phase needs refinement, increase the order of the polynomial by 3 for next iteration
+                    poly_orders = [
+                        self.poly_orders[i] + 3 * int(st) for i, st in enumerate(status)
+                    ]
+                    refine_phase[i_phase] = True
+
+            if not np.array(refine_phase).all():
+                return solution
+
+            # Compute reduction in mesh size
+            # Skipped for now ---- Yet to be implemented
+
+            # Compute nodes in next fine mesh (poly_orders + 3)
+            taus_new = np.array([self.collocation._taus_fn(deg) for deg in poly_orders])
+            taus_new = [taus_new for phase in range(self._ocp.n_phases)]
+
+            # Compute second derivative at nodes of next iteration
+            time_d, ddx, ddu = self.get_state_second_derivative(
+                solution, nodes=taus_new
+            )
+
+            # ************************** Refined solution *******************
+            print(
+                f"Iteration {iter_no} : max_residual, n_segments, poly_orders, seg_widths:- ({abs_max_residual}, {self.n_segments}, {self.poly_orders}, {self._nlp_sw_params})"
+            )
+
+            # Step-1: Solve the problem by increasing the order of polynomial by 3 in segments with high error
+            poly_orders_orig = copy.deepcopy(self.poly_orders)
+            self.poly_orders = limit_poly_orders(poly_orders)
+
+            # Grid M (Solution with fine mesh, same number segments as solution but with increased polynomial degree)
+            self.reset_mpopt()
+            solution_new = self.solve(reinitialize_nlp=True, **solve_dict)
+
+            # Step-2  : Compute the maximum residual in the states using gaussian quadrature of dynamics (Refer Anil V. Rao http://dx.doi.org/10.1016/j.jfranklin.2015.05.028)
+            time_r_new, residual_r_new = self.get_states_residuals(
+                solution_new,
+                grid_type=grid_type,
+                residual_type="relative",
+                plot=False,
+            )
+            max_residual_new = self.get_abs_max_residual(residual_r_new)
+
+            # Compute second derivate (state)
+            # taus_new = np.array(
+            #     [self.collocation._taus_fn(deg) for deg in self.poly_orders]
+            # )
+            # taus_new = [taus_new for phase in range(self._ocp.n_phases)]
+            time_d_new, ddx_new, ddu_new = self.get_state_second_derivative(
+                solution_new, nodes=taus_new
+            )
+
+            # Step-3: Check if the solution is acceptable, find segment with max residual
+            refine_phase = [False] * self._ocp.n_phases
+            dd_max_phase = [None] * (self._ocp.n_phases)
+            for i_phase, max_r_phase in enumerate(max_residual_new):
+                max_seg_residual = np.array(max_r_phase)[:, 1].max(axis=1)
+                status = max_seg_residual > self.max_residual
+                if status.any():
+                    # This phase needs refinement
+                    dd_max_phase[i_phase] = [
+                        np.array(
+                            [
+                                abs(ddx_new[i_phase][i_seg][:, i, 0])
+                                / abs(ddx[i_phase][i_seg][:, i, 0]).max()
+                                for i in range(self._ocp.nx)
+                            ]
+                        )
+                        for i_seg, st in enumerate(status)
+                    ]
+                    refine_phase[i_phase] = True
+
+            if not np.array(refine_phase).all():
+                return solution_new
+
+            abs_max_residual = 0
+            # Find non-smooth segments where residual is more than the required tolerence
+            for i_phase, max_r_phase in enumerate(max_residual_new):
+                poly_orders = []
+                nlp_sw_params = []
+                max_seg_residual = np.array(max_r_phase)[:, 1].max(axis=1)
+                if max_seg_residual.max() > abs_max_residual:
+                    abs_max_residual = max_seg_residual.max()
+                status = max_seg_residual > self.max_residual
+                for i_seg, st in enumerate(status):
+                    if (
+                        st
+                        and (
+                            dd_max_phase[i_phase][i_seg] > self.non_smooth_threshold
+                        ).any()
+                    ):
+                        # Split i_seg in additional segments based on desired residual
+                        new_segments = 2
+                        nlp_sw_params.append(
+                            [self._nlp_sw_params[i_seg] / new_segments] * new_segments
+                        )
+                        poly_orders.append([self.poly_orders[i_seg]] * new_segments)
+
+                        # max_residual_seg = residual_r[phase][seg].max()
+                        # max_residual_seg_sparse = residual_rs[phase][seg].max()
+                        # ratio_residual = max_residual_seg / max_residual_seg_sparse
+                        # ratio_nodes = poly_orders[seg] / self.poly_orders[seg]
+                        # q = np.ceil(
+                        #     5 / 2 + np.log(ratio_residual) / np.log(ratio_nodes)
+                        # )
+                        # ratio_residual_req = max_residual_seg / max_err
+                        # seg_width_new = 1 * pow(ratio_residual_req, 1.0 / q)
+                        # n_splits_max = np.ceil(
+                        #     np.log(ratio_residual_req, poly_orders[seg])
+                        # )
+                        # n_splits = min(np.ceil(1 / seg_width_new), n_splits_max)
+                        # seg_refine_phase[phase][seg] = n_splits
+                    else:
+                        # The solution is smooth and the residual is higher than the required tolerance.
+                        # Increase the order of polynomial
+                        poly_orders.append(self.poly_orders[i_seg])
+                        nlp_sw_params.append(self._nlp_sw_params[i_seg])
+
+        return solution_new

@@ -25,6 +25,7 @@ gpops2.com/resources/gpops2UsersGuide.pdf
 """
 import numpy as np
 import casadi as ca
+import time
 
 try:
     from mpopt import mp
@@ -291,8 +292,51 @@ ocp.lbe = np.array([lbe0, lbe1, lbe2])
 ocp.ube = np.array([lbe0, lbe1, lbe2])
 ocp.validate()
 
-# Solve with drag disables
+# Solve with drag disabled
 ocp.dynamics = get_dynamics(0)
+
+
+class MyCallback(ca.Callback):
+    def __init__(self, name, nx, ng, np, opts={}):
+        ca.Callback.__init__(self)
+
+        self.nx = nx
+        self.ng = ng
+        self.np = np
+        mp.plt.figure(1)
+        mp.plt.subplot(111)
+        mp.plt.draw()
+
+        self.construct(name, opts)
+
+    def get_n_in(self):
+        return ca.nlpsol_n_out()
+
+    def get_sparsity_in(self, i):
+        n = ca.nlpsol_out(i)
+        if n == "f":
+            return ca.Sparsity.scalar()
+        elif n in ("x", "lam_x"):
+            return ca.Sparsity.dense(self.nx)
+        elif n in ("g", "lam_g"):
+            return ca.Sparsity.dense(self.ng)
+        else:
+            return ca.Sparsity(0, 0)
+
+    def eval(self, arg):
+        sol = {}
+        for (i, s) in enumerate(ca.nlpsol_out()):
+            sol[s] = arg[i]
+
+        post = mpo.process_results(sol, plot=False)
+        x, u, t, a = post.get_data(interpolate=True)
+        mp.plt.plot(t, u[:, 1])
+        mp.plt.draw()
+
+        time.sleep(0.25)
+
+        return [0]
+
 
 if __name__ == "__main__":
     mpo = mp.mpopt(ocp, 1, 11)
@@ -302,9 +346,18 @@ if __name__ == "__main__":
     ocp.dynamics = get_dynamics(1)
     ocp.validate()
 
+    mycallback = MyCallback(
+        "mycallback", mpo.Z.shape[0], mpo.G.shape[0], mpo._nlp_sw_params
+    )
     mpo._ocp = ocp
     sol = mpo.solve(
-        sol, reinitialize_nlp=True, nlp_solver_options={"ipopt.acceptable_tol": 1e-6}
+        sol,
+        reinitialize_nlp=True,
+        nlp_solver_options={
+            "ipopt.acceptable_tol": 1e-6,
+            "iteration_callback": mycallback,
+            "iteration_callback_step": 5,
+        },
     )
     print("Final mass : ", round(-sol["f"].full()[0, 0] * m0, 4))
 
