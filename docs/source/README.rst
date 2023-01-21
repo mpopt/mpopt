@@ -99,9 +99,6 @@ fuel (u).
 -  For a detailed demo of the mpopt features, refer the notebook
    `getting_started.ipynb <https://github.com/mpopt/mpopt/blob/master/getting_started.ipynb>`__
 
-|Non-adaptive grid| |Adaptive grid (Equal residual segments)| |Adaptive
-grid|
-
 Authors
 =======
 
