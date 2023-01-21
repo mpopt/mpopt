@@ -36,7 +36,7 @@ Main features of the package are :
 -   Active development
 
 Quick start
-===========
+----------------
 
 -   Install from [PyPI](https://pypi.org/project/mpopt/) using the following terminal command, then copy paste the code from example below in a file (test.py) and run (python3 test.py) to confirm the installation.
 
@@ -92,9 +92,9 @@ mp.plt.show()
 Results
 --------
 
-[!Non-adaptive grid](docs/plots/moon_lander_gh.png)
-[!Adaptive grid (Equal residual segments)](docs/plots/ml_h_ad_eq_res.png)
-[!Adaptive grid](docs/plots/ml_ad.png)
+![Non-adaptive grid](https://github.com/mpopt/mpopt/blob/fe77ed4ef9888024fedd3570789de88f8af61bc4/docs/plots/moon_lander_gh.png)
+![Adaptive grid (Equal residual segments)](https://github.com/mpopt/mpopt/blob/fe77ed4ef9888024fedd3570789de88f8af61bc4/docs/plots/ml_h_ad_eq_res.png)
+![Adaptive grid](https://github.com/mpopt/mpopt/blob/fe77ed4ef9888024fedd3570789de88f8af61bc4/docs/plots/ml_ad.png)
 
 Authors
 =======
