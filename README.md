@@ -89,12 +89,9 @@ mp.plt.show()
 -  Update the grid to recompute solution (Ex. n_segments=3, poly_orders=[3, 30, 3]).
 -  For a detailed demo of the mpopt features, refer the notebook [getting_started.ipynb](https://github.com/mpopt/mpopt/blob/master/getting_started.ipynb)
 
-Results
---------
-
-![Non-adaptive grid](/docs/plots/moon_lander_gh.png)
-![Adaptive grid (Equal residual segments)](/docs/plots/ml_h_ad_eq_res.png)
-![Adaptive grid](/docs/plots/ml_ad.png)
+![Non-adaptive grid](docs/plots/moon_lander_gh.png)
+![Adaptive grid (Equal residual segments)](docs/plots/ml_h_ad_eq_res.png)
+![Adaptive grid](docs/plots/ml_ad.png)
 
 Authors
 =======

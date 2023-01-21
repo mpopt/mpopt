@@ -35,7 +35,7 @@ Main features of the package are :
 -  Active development
 
 Quick start
-===========
+-----------
 
 -  Install from `PyPI <https://pypi.org/project/mpopt/>`__ using the
    following terminal command, then copy paste the code from example
@@ -94,17 +94,13 @@ fuel (u).
 
 -  Experiment with different collocation schemes by changing “LGR” to
    “CGL” or “LGL” in the above script.
--  Update the grid (n_segments, poly_orders) to recompute solution (Ex.
-   n_segments=3, poly_orders=[3, 30, 3]).
+-  Update the grid to recompute solution (Ex. n_segments=3,
+   poly_orders=[3, 30, 3]).
 -  For a detailed demo of the mpopt features, refer the notebook
    `getting_started.ipynb <https://github.com/mpopt/mpopt/blob/master/getting_started.ipynb>`__
 
-Results
--------
-
-`!Non-adaptive grid <docs/plots/moon_lander_gh.png>`__ `!Adaptive grid
-(Equal residual segments) <docs/plots/ml_h_ad_eq_res.png>`__ `!Adaptive
-grid <docs/plots/ml_ad.png>`__
+|Non-adaptive grid| |Adaptive grid (Equal residual segments)| |Adaptive
+grid|
 
 Authors
 =======
@@ -132,3 +128,6 @@ Acknowledgements
    :target: https://coveralls.io/github/mpopt/mpopt
 .. |Documentation Status| image:: https://readthedocs.org/projects/mpopt/badge/?version=latest
    :target: https://mpopt.readthedocs.io/en/latest/?badge=latest
+.. |Non-adaptive grid| image:: docs/plots/moon_lander_gh.png
+.. |Adaptive grid (Equal residual segments)| image:: docs/plots/ml_h_ad_eq_res.png
+.. |Adaptive grid| image:: docs/plots/ml_ad.png
