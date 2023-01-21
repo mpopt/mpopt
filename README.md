@@ -92,9 +92,9 @@ mp.plt.show()
 Results
 --------
 
-![Non-adaptive grid](docs/plots/moon_lander_gh.png)
-![Adaptive grid (Equal residual segments)](docs/plots/ml_h_ad_eq_res.png)
-![Adaptive grid](docs/plots/ml_ad.png)
+![Non-adaptive grid](/docs/plots/moon_lander_gh.png)
+![Adaptive grid (Equal residual segments)](/docs/plots/ml_h_ad_eq_res.png)
+![Adaptive grid](/docs/plots/ml_ad.png)
 
 Authors
 =======
