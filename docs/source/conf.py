@@ -1,7 +1,7 @@
 #
 # Copyright (c) 2020 LA EPFL.
 #
-# This file is part of MPOPT 
+# This file is part of MPOPT
 # (see http://github.com/mpopt).
 #
 # This program is free software: you can redistribute it and/or modify
@@ -43,7 +43,7 @@ copyright = "2020, Devakumar THAMMISETTY, Colin Jones"
 author = "Devakumar THAMMISETTY, Colin Jones"
 
 # The full version, including alpha/beta/rc tags
-release = "0.1.2"
+release = "0.1.6"
 
 
 # -- General configuration ---------------------------------------------------
@@ -67,7 +67,7 @@ exclude_patterns = []
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = "alabaster"
+html_theme = "classic"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
