@@ -1,60 +1,74 @@
-[![pypi pacakge](https://img.shields.io/pypi/v/mpopt.svg)](https://pypi.org/project/mpopt)
-[![Build Status](https://travis-ci.org/mpopt/mpopt.svg?branch=master)](https://travis-ci.org/mpopt/mpopt.svg?branch=master)
-[![Coverage Status](https://coveralls.io/repos/github/mpopt/mpopt/badge.svg)](https://coveralls.io/github/mpopt/mpopt)
-[![Documentation Status](https://readthedocs.org/projects/mpopt/badge/?version=latest)](https://mpopt.readthedocs.io/en/latest/?badge=latest)
+[![pypi
+pacakge](https://img.shields.io/pypi/v/mpopt.svg)](https://pypi.org/project/mpopt)
+[![Build
+Status](https://travis-ci.org/mpopt/mpopt.svg?branch=master)](https://travis-ci.org/mpopt/mpopt.svg?branch=master)
+[![Coverage
+Status](https://coveralls.io/repos/github/mpopt/mpopt/badge.svg)](https://coveralls.io/github/mpopt/mpopt)
+[![Documentation
+Status](https://readthedocs.org/projects/mpopt/badge/?version=latest)](https://mpopt.readthedocs.io/en/latest/?badge=latest)
 
-### MPOPT
+MPOPT
+=====
 
-*MPOPT* is a collection of modules to solve multi-stage optimal control problems(OCPs) using pseudo-spectral collocation method. This module creates Nonlinear programming problem (NLP) from the given OCP description, which is then solved by CasADi nlpsolver using various available plugins such as *ipopt*, *snopt* etc.
+*MPOPT* is a open-source, extensible, customizable and easy
+to use python package that includes a collection of modules to solve
+multi-stage non-linear optimal control problems(OCP) using
+pseudo-spectral collocation methods.
 
-Main features of the solver are :
+The package uses collocation methods to construct a Nonlinear programming problem (NLP) representation of OCP. The resulting NLP is then solved by algorithmic differentiation based [CasADi nlpsolver](https://casadi.sourceforge.net/v3.3.0/api/html/d4/d89/group__nlpsol.html)
+( NLP solver supports multiple solver plugins including
+[IPOPT](https://casadi.sourceforge.net/v3.3.0/api/html/d4/d89/group__nlpsol.html#plugin_Nlpsol_ipopt),
+[SNOPT](https://casadi.sourceforge.net/v3.3.0/api/html/d4/d89/group__nlpsol.html#plugin_Nlpsol_snopt),
+[sqpmethod](https://casadi.sourceforge.net/v3.3.0/api/html/d4/d89/group__nlpsol.html#plugin_Nlpsol_sqpmethod),
+[scpgen](https://casadi.sourceforge.net/v3.3.0/api/html/d4/d89/group__nlpsol.html#plugin_Nlpsol_scpgen)).
 
-* Customizable collocation approximation, compatable with Legendre-Gauss-Radau, Legendre-Gauss-Lobatto, Chebyshev-Gauss-Lobatto roots.
-* Intuitive definition of OCP/multi-phase OCP
-* Single-phase as well as multi-phase OCP solving capability using user defined collocation approximation
-* Adaptive grid refinement schemes for robust solutions
-* NLP solution using algorithmic differentiation capability offered by [CasADi](https://web.casadi.org/), multiple NLP solver compatibility 'ipopt', 'snopt', 'sqpmethod' etc.
-* Sophisticated post-processing module for interactive data visualization
+Main features of the package are :
 
-### Getting started
+-   Customizable collocation approximation, compatible with
+    Legendre-Gauss-Radau (LGR), Legendre-Gauss-Lobatto (LGL),
+    Chebyshev-Gauss-Lobatto (CGL) roots.
+-   Intuitive definition of single/multi-phase OCP.
+-   Supports Differential-Algebraic Equations (DAEs).
+-   Customized adaptive grid refinement schemes (Extendable)
+-   Gaussian quadrature and differentiation matrices are evaluated using algorithmic differentiation, thus, supporting arbitrarily high number of collocation points limited only by the computational resources.
+-   Intuitive post-processing module to retrieve and visualize the solution
+-   Good test coverage of the overall package
+-   Active development
 
-A brief overview of the package and capabilities are demonstrated with simple moon-lander OCP example in Jupyter notebook.
+Quick start
+===========
 
-- Get started with [MPOPT](https://github.com/mpopt/mpopt/blob/master/getting_started.ipynb)
+-   Install from [PyPI](https://pypi.org/project/mpopt/) using the following terminal command, then copy paste the code from example below in a file (test.py) and run (python3 test.py) to confirm the installation.
 
-### Installation
-
-Install and try the package using
-
+```bash
+pip install mpopt
 ```
-$ pip install mpopt
-$ wget https://raw.githubusercontent.com/mpopt/mpopt/master/examples/moon_lander.py
-$ python3 moon_lander.py
+
+-   (OR) Build directly from source (Terminal). Finally, `make run` to solve the moon-lander example described below.
+
+```bash
+git clone https://github.com/mpopt/mpopt.git --branch master
+cd mpopt
+make install
+make test
 ```
 
-If you want to downloaded it from source, you may do so either by:
+A sample code to solve moon-lander OCP (2D) under 10 lines
+-------------------------------------------------------------
 
-- Downloading it from [GitHub](https://github.com/mpopt/mpopt) page
-    - Unzip the folder and you are ready to go
-- Or cloning it to a desired directory using git:
-    - ```$ git clone https://github.com/mpopt/mpopt.git --branch master```
+**OCP** :
+> Find optimal path, i.e Height ( $x_0$ ), Velocity ( $x_1$ ) and Throttle ( $u$ ) to reach the surface: Height (0m), Velocity (0m/s) from Height (10m) and velocity(-2m/s) with minimum fuel (u).
 
-- Move to the cloned directory
-    - ```$ cd mpopt```
-- Install package using
-    - ```$ make install```
-- Test installation using
-    - ```$ make test```
-- Try moon-lander example using
-    - ```$ make run```
+$$\begin{aligned}
+&\min_{x, u}        & \qquad & J = 0 + \int_{t_0}^{t_f}u\ dt\\
+&\text{subject to} &      & \dot{x_0} = x_1; \dot{x_1} = u - 1.5; x_0 \geq 0; 0 \leq u \leq 3\\
+&                  &      & x_0(t_0) = 10; \ x_1(t_0) = -2; t_0 = 0.0; x_0(t_f) = 0; \ x_1(t_f) = 0; t_f = \text{free variable}
+\end{aligned}$$
 
-### Documentation
-
-- Refer [Documentation](https://mpopt.readthedocs.io/en/latest/)
-
-### A sample code to solve moon-lander OCP (2D)
 ```python
 # Moon lander OCP direct collocation/multi-segment collocation
+
+# from context import mpopt # (Uncomment if running from source)
 from mpopt import mp
 
 # Define OCP
@@ -67,18 +81,35 @@ ocp.lbu[0], ocp.ubu[0] = 0, 3
 
 # Create optimizer(mpo), solve and post process(post) the solution
 mpo, post = mp.solve(ocp, n_segments=20, poly_orders=3, scheme="LGR", plot=True)
+x, u, t, _ = post.get_data()
+mp.plt.show()
 ```
 
-### Authors
+-  Experiment with different collocation schemes by changing "LGR" to "CGL" or "LGL" in the above script.
+-  Update the grid (n_segments, poly_orders) to recompute solution (Ex. n_segments=3, poly_orders=[3, 30, 3]).
+-  For a detailed demo of the mpopt features, refer the notebook [getting_started.ipynb](https://github.com/mpopt/mpopt/blob/master/getting_started.ipynb)
 
-* **Devakumar THAMMISETTY**
-* **Prof. Colin Jones** (Co-author)
+Results
+--------
 
+[!Non-adaptive grid](docs/plots/moon_lander_gh.png)
+[!Adaptive grid (Equal residual segments)](docs/plots/ml_h_ad_eq_res.png)
+[!Adaptive grid](docs/plots/ml_ad.png)
 
-### License
+Authors
+=======
 
-This project is licensed under the GNU LGPL v3 - see the [LICENSE](https://github.com/mpopt/mpopt/blob/master/LICENSE) file for details
+-   **Devakumar THAMMISETTY**
+-   **Prof. Colin Jones** (Co-author)
 
-### Acknowledgements
+License
+=======
 
-* **Petr Listov**
+This project is licensed under the GNU LGPL v3 - see the
+[LICENSE](https://github.com/mpopt/mpopt/blob/master/LICENSE) file for
+details
+
+Acknowledgements
+================
+
+-   **Petr Listov**

@@ -78,6 +78,7 @@ if __name__ == "__main__":
     mp.plt.title(
         f"Adaptive solution: merge_split : segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
     )
+    # mp.plt.savefig("docs/plots/ml_h_ad_merge_split.png")
 
     mpo = mp.mpopt_h_adaptive(ocp, 10, 4)
     sol = mpo.solve(
@@ -87,6 +88,7 @@ if __name__ == "__main__":
     mp.plt.title(
         f"Adaptive solution: equal_residual : segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
     )
+    # mp.plt.savefig("docs/plots/ml_h_ad_eq_res.png")
 
     mpo = mp.mpopt_h_adaptive(ocp, 5, 4)
     sol = mpo.solve(
@@ -96,6 +98,7 @@ if __name__ == "__main__":
     mp.plt.title(
         f"Adaptive solution: Control slope : segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
     )
+    # mp.plt.savefig("docs/plots/ml_h_ad_c_slope.png")
 
     mpo = mp.mpopt_adaptive(ocp, 3, 2)
     mpo.lbh[0] = 1e-6
@@ -105,5 +108,6 @@ if __name__ == "__main__":
     mp.plt.title(
         f"Adaptive solution: Direct opt. : segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
     )
+    # mp.plt.savefig("docs/plots/ml_ad.png")
 
     mp.plt.show()
