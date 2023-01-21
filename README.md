@@ -86,15 +86,15 @@ mp.plt.show()
 ```
 
 -  Experiment with different collocation schemes by changing "LGR" to "CGL" or "LGL" in the above script.
--  Update the grid (n_segments, poly_orders) to recompute solution (Ex. n_segments=3, poly_orders=[3, 30, 3]).
+-  Update the grid to recompute solution (Ex. n_segments=3, poly_orders=[3, 30, 3]).
 -  For a detailed demo of the mpopt features, refer the notebook [getting_started.ipynb](https://github.com/mpopt/mpopt/blob/master/getting_started.ipynb)
 
 Results
 --------
 
-![Non-adaptive grid](https://github.com/mpopt/mpopt/blob/fe77ed4ef9888024fedd3570789de88f8af61bc4/docs/plots/moon_lander_gh.png)
-![Adaptive grid (Equal residual segments)](https://github.com/mpopt/mpopt/blob/fe77ed4ef9888024fedd3570789de88f8af61bc4/docs/plots/ml_h_ad_eq_res.png)
-![Adaptive grid](https://github.com/mpopt/mpopt/blob/fe77ed4ef9888024fedd3570789de88f8af61bc4/docs/plots/ml_ad.png)
+![Non-adaptive grid](docs/plots/moon_lander_gh.png)
+![Adaptive grid (Equal residual segments)](docs/plots/ml_h_ad_eq_res.png)
+![Adaptive grid](docs/plots/ml_ad.png)
 
 Authors
 =======
