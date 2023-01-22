@@ -6,6 +6,8 @@ Status](https://travis-ci.org/mpopt/mpopt.svg?branch=master)](https://travis-ci.
 Status](https://coveralls.io/repos/github/mpopt/mpopt/badge.svg)](https://coveralls.io/github/mpopt/mpopt)
 [![Documentation
 Status](https://readthedocs.org/projects/mpopt/badge/?version=latest)](https://mpopt.readthedocs.io/en/latest/?badge=latest)
+[![python](https://img.shields.io/pypi/pyversions/mpopt)](https://pypi.org/project/mpopt/)
+<!-- [![license](https://img.shields.io/pypi/l/mpopt)](https://github.com/mpopt/mpopt/blob/master/LICENSE) -->
 
 MPOPT
 =====
@@ -89,9 +91,19 @@ mp.plt.show()
 -  Update the grid to recompute solution (Ex. n_segments=3, poly_orders=[3, 30, 3]).
 -  For a detailed demo of the mpopt features, refer the notebook [getting_started.ipynb](https://github.com/mpopt/mpopt/blob/master/getting_started.ipynb)
 
-![Non-adaptive grid](docs/plots/moon_lander_gh.png)
-![Adaptive grid (Equal residual segments)](docs/plots/ml_h_ad_eq_res.png)
-![Adaptive grid](docs/plots/ml_ad.png)
+Resources
+------------
+-  Detailed implementation aspects of MPOPT are part of the `master thesis <https://github.com/mpopt/mpopt/blob/01f4612ec84a5f6bec8f694c19b129d9fbc12527/docs/Devakumar-Master-Thesis-Report.pdf>`__.
+-  Documentation at `mpopt.readthedocs.io/<mpopt.readthedocs.io/>`
+
+Features and Limitations
+---------------------------
+While MPOPT is able to solve any Optimal control problem formulation the Bolza form, the present limitations are,
+
+- Only continuous functions and derivatives are supported
+- Dynamics and constraints are to be written in CasADi variables (Familiarity with casadi variables and expressions is expected)
+- The adaptive grid though successful in generating robust solutions for simple problems, doesn't have a concrete proof on convergence.
+
 
 Authors
 =======
@@ -110,3 +122,16 @@ Acknowledgements
 ================
 
 -   **Petr Listov**
+
+Cite
+=====
+
+-  D. Thammisetty, “Development of a multi-phase optimal control software for aerospace applications (mpopt),” Master’s thesis, Lausanne, EPFL, 2020.
+
+**BibTex entry**:
+
+    @mastersthesis{thammisetty2020development,
+          title={Development of a multi-phase optimal control software for aerospace applications (mpopt)},
+          author={Thammisetty, Devakumar},
+          year={2020},
+          school={Master’s thesis, Lausanne, EPFL}}

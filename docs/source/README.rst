@@ -1,5 +1,3 @@
-|pypi pacakge| |Build Status| |Coverage Status| |Documentation Status|
-
 MPOPT
 =====
 
@@ -56,10 +54,10 @@ Quick start
    make install
    make test
 
-A sample code to solve moon-lander OCP (2D) under 10 lines
-----------------------------------------------------------
+Solve moon-lander OCP in under 10 lines
+-----------------------------------------
 
-**OCP** : > Find optimal path, i.e Height ( :math:`x_0` ), Velocity (
+**OCP** : Find optimal path, i.e Height ( :math:`x_0` ), Velocity (
 :math:`x_1` ) and Throttle ( :math:`u` ) to reach the surface: Height
 (0m), Velocity (0m/s) from Height (10m) and velocity(-2m/s) with minimum
 fuel (u).
@@ -97,34 +95,17 @@ fuel (u).
 -  Update the grid to recompute solution (Ex. n_segments=3,
    poly_orders=[3, 30, 3]).
 -  For a detailed demo of the mpopt features, refer the notebook
-   `getting_started.ipynb <https://github.com/mpopt/mpopt/blob/master/getting_started.ipynb>`__
+   `getting_started.ipynb <https://github.com/mpopt/mpopt/blob/master/docs/notebooks/getting_started.ipynb>`__
 
-Authors
-=======
+Resources
+------------
+-  Detailed implementation aspects of MPOPT are part of the `master thesis <https://github.com/mpopt/mpopt/blob/01f4612ec84a5f6bec8f694c19b129d9fbc12527/docs/Devakumar-Master-Thesis-Report.pdf>`__.
+-  Documentation at `mpopt.readthedocs.io/<mpopt.readthedocs.io/>`
 
--  **Devakumar THAMMISETTY**
--  **Prof. Colin Jones** (Co-author)
+Features and Limitations
+---------------------------
+While MPOPT is able to solve any Optimal control formulation the Bolza form (Including Multi-stage), the following are the Limitations
 
-License
-=======
-
-This project is licensed under the GNU LGPL v3 - see the
-`LICENSE <https://github.com/mpopt/mpopt/blob/master/LICENSE>`__ file
-for details
-
-Acknowledgements
-================
-
--  **Petr Listov**
-
-.. |pypi pacakge| image:: https://img.shields.io/pypi/v/mpopt.svg
-   :target: https://pypi.org/project/mpopt
-.. |Build Status| image:: https://travis-ci.org/mpopt/mpopt.svg?branch=master
-   :target: https://travis-ci.org/mpopt/mpopt.svg?branch=master
-.. |Coverage Status| image:: https://coveralls.io/repos/github/mpopt/mpopt/badge.svg
-   :target: https://coveralls.io/github/mpopt/mpopt
-.. |Documentation Status| image:: https://readthedocs.org/projects/mpopt/badge/?version=latest
-   :target: https://mpopt.readthedocs.io/en/latest/?badge=latest
-.. |Non-adaptive grid| image:: docs/plots/moon_lander_gh.png
-.. |Adaptive grid (Equal residual segments)| image:: docs/plots/ml_h_ad_eq_res.png
-.. |Adaptive grid| image:: docs/plots/ml_ad.png
+- Only continuous functions and derivatives are supported
+- Dynamics and constraints are to be written in CasADi variables (Familiarity with casadi variables and expressions is expected)
+- The adaptive grid though successful in generating robust solutions for simple problems, doesnt have a concrete proof on convergence.

@@ -33,7 +33,7 @@ requirements = [
 
 setup(
     name="mpopt",
-    version="0.1.6",
+    version="0.1.7",
     author="Devakumar THAMMISETTY, Colin Jones",
     author_email="deva.aerospace@gmail.com",
     description="A Multi-phase nonlinear Optimal control problem solver using Pseudo-spectral collocation",
@@ -44,9 +44,11 @@ setup(
     install_requires=requirements,
     classifiers=[
         "Programming Language :: Python :: 3.8",
-        # "License :: OSI Approved :: GNU Lesser General Public License v3.0 (LGPLv3)",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
         #'Intended Audience :: Developers, Research community across Academic and Public institutions',
-        #'Topic :: Software Development :: Optimal Control',
+        # "Topic :: Software Development :: Optimal Control, collocation, numerical optimization",
     ],
     keywords="optimal control, multi-phase OCP, collocation, adaptive grid refinement, nonlinear optimization",
     project_urls={
