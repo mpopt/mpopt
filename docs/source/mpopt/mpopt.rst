@@ -1,15 +1,6 @@
 MPOPT package implementation
 ===============================
 
-mpopt base class
--------------------
-
-.. autoclass:: mpopt.mpopt.mpopt
-   :members:
-   :show-inheritance:
-
-
-
 Collocation
 -------------------------------
 
@@ -39,6 +30,15 @@ OCP definition class
   :members:
   :undoc-members:
   :show-inheritance:
+
+
+mpopt base class
+-------------------
+
+.. autoclass:: mpopt.mpopt.mpopt
+   :members:
+   :show-inheritance:
+
 
 
 Adaptive grid refinement scheme-I & II

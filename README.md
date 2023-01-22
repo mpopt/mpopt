@@ -6,11 +6,13 @@ Status](https://travis-ci.org/mpopt/mpopt.svg?branch=master)](https://travis-ci.
 Status](https://coveralls.io/repos/github/mpopt/mpopt/badge.svg)](https://coveralls.io/github/mpopt/mpopt)
 [![Documentation
 Status](https://readthedocs.org/projects/mpopt/badge/?version=latest)](https://mpopt.readthedocs.io/en/latest/?badge=latest)
+[![python](https://img.shields.io/pypi/pyversions/mpopt)](https://pypi.org/project/mpopt/)
+<!-- [![license](https://img.shields.io/pypi/l/mpopt)](https://github.com/mpopt/mpopt/blob/master/LICENSE) -->
 
 MPOPT
 =====
 
-*MPOPT* is a open-source, extensible, customizable and easy
+*MPOPT* is an open-source, extensible, customizable and easy
 to use python package that includes a collection of modules to solve
 multi-stage non-linear optimal control problems(OCP) using
 pseudo-spectral collocation methods.
@@ -38,7 +40,7 @@ Main features of the package are :
 Quick start
 ----------------
 
--   Install from [PyPI](https://pypi.org/project/mpopt/) using the following terminal command, then copy paste the code from example below in a file (test.py) and run (python3 test.py) to confirm the installation.
+-   Install from the [Python Package Index](https://pypi.org/project/mpopt/) repository using the following terminal command, then copy paste the code from example below in a file (test.py) and run (python3 test.py) to confirm the installation.
 
 ```bash
 pip install mpopt
@@ -57,12 +59,15 @@ A sample code to solve moon-lander OCP (2D) under 10 lines
 -------------------------------------------------------------
 
 **OCP** :
-> Find optimal path, i.e Height ( $x_0$ ), Velocity ( $x_1$ ) and Throttle ( $u$ ) to reach the surface: Height (0m), Velocity (0m/s) from Height (10m) and velocity(-2m/s) with minimum fuel (u).
+> Find optimal path, i.e Height ( $x_0$ ), Velocity ( $x_1$ ) and Throttle ( $u$ ) to reach the surface: Height (0m), Velocity (0m/s) from: Height (10m) and velocity(-2m/s) with: minimum fuel (u).
 
 $$\begin{aligned}
 &\min_{x, u}        & \qquad & J = 0 + \int_{t_0}^{t_f}u\ dt\\
-&\text{subject to} &      & \dot{x_0} = x_1; \dot{x_1} = u - 1.5; x_0 \geq 0; 0 \leq u \leq 3\\
-&                  &      & x_0(t_0) = 10; \ x_1(t_0) = -2; t_0 = 0.0; x_0(t_f) = 0; \ x_1(t_f) = 0; t_f = \text{free variable}
+&\text{subject to} &      & \dot{x_0} = x_1; \dot{x_1} = u - 1.5\\
+&                  &       & x_0 \geq 0; 0 \leq u \leq 3\\
+&                  &      & x_0(t_0) = 10; \ x_1(t_0) = -2\\
+ &                 &     & x_0(t_f) = 0; \ x_1(t_f) = 0\\
+ &                 &     & t_0 = 0.0; t_f = \text{free variable}
 \end{aligned}$$
 
 ```python
@@ -89,9 +94,19 @@ mp.plt.show()
 -  Update the grid to recompute solution (Ex. n_segments=3, poly_orders=[3, 30, 3]).
 -  For a detailed demo of the mpopt features, refer the notebook [getting_started.ipynb](https://github.com/mpopt/mpopt/blob/master/getting_started.ipynb)
 
-![Non-adaptive grid](docs/plots/moon_lander_gh.png)
-![Adaptive grid (Equal residual segments)](docs/plots/ml_h_ad_eq_res.png)
-![Adaptive grid](docs/plots/ml_ad.png)
+Resources
+------------
+-  Detailed implementation aspects of MPOPT are part of the [master thesis](https://github.com/mpopt/mpopt/blob/01f4612ec84a5f6bec8f694c19b129d9fbc12527/docs/Devakumar-Master-Thesis-Report.pdf).
+-  Documentation at [mpopt.readthedocs.io/](mpopt.readthedocs.io/)
+
+Features and Limitations
+---------------------------
+While MPOPT is able to solve any Optimal control problem formulation in the Bolza form, the present limitations of MPOPT are,
+
+- Only continuous functions and derivatives are supported
+- Dynamics and constraints are to be written in CasADi variables (Familiarity with casadi variables and expressions is expected)
+- The adaptive grid though successful in generating robust solutions for simple problems, doesn't have a concrete proof on convergence.
+
 
 Authors
 =======
@@ -110,3 +125,16 @@ Acknowledgements
 ================
 
 -   **Petr Listov**
+
+Cite
+=====
+
+-  D. Thammisetty, “Development of a multi-phase optimal control software for aerospace applications (mpopt),” Master’s thesis, Lausanne, EPFL, 2020.
+
+**BibTex entry**:
+
+    @mastersthesis{thammisetty2020development,
+          title={Development of a multi-phase optimal control software for aerospace applications (mpopt)},
+          author={Thammisetty, Devakumar},
+          year={2020},
+          school={Master’s thesis, Lausanne, EPFL}}
