@@ -5,4 +5,4 @@ casadi==3.5.5.post2
 pytest==7.2.1
 matplotlib==3.6.3
 scipy==1.10.0
-sphinxawesome-theme
+sphinxawesome-theme==3.3.7
