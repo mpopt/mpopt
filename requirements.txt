@@ -4,5 +4,5 @@ typing==3.7.4.1
 casadi==3.5.5
 pytest==5.4.1
 matplotlib==3.2.1
-scipy==1.4.1
+scipy==1.10.0
 sphinxawesome-theme
