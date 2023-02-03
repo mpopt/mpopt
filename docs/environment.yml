@@ -1,5 +1,0 @@
-name: mpopt_docs
-dependencies:
-  - python=3.8
-  - pip:
-      - -r doc-requirements.txt
