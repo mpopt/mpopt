@@ -37,8 +37,6 @@ formats:
   - pdf
 
 # Optionally set the version of Python and requirements required to build your docs
-conda:
-    file: docs/environment.yml
 python:
   version: 3.8
   install:
