@@ -22,6 +22,7 @@ language: python
 python: 3.8
 install:
   - pip install -r requirements_dev.txt
+  - pip install -r docs/doc-requirements.txt
   - pip install -e .
 script:
   - pytest --cov=mpopt

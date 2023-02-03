@@ -1,7 +1,7 @@
 ##
 ## Copyright (c) 2020 LA EPFL.
 ##
-## This file is part of MPOPT 
+## This file is part of MPOPT
 ## (see http://github.com/mpopt).
 ##
 ## This program is free software: you can redistribute it and/or modify
@@ -37,7 +37,9 @@ formats:
   - pdf
 
 # Optionally set the version of Python and requirements required to build your docs
+conda:
+    file: docs/environment.yml
 python:
   version: 3.8
   install:
-    - requirements: requirements.txt
+    - requirements: docs/doc-requirements.txt
