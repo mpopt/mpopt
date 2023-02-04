@@ -25,6 +25,7 @@ pseudo-spectral collocation methods.
     documentation.rst
     developer_notes.rst
     ENDMATTER.rst
+    ../notebooks/moon_lander
 
 A pdf version of this documentation can be downloaded from `PDF document <https://mpopt.readthedocs.io/_/downloads/en/latest/pdf/>`_
 
