@@ -50,7 +50,7 @@ sys.setrecursionlimit(1500)
 html_theme = "pydata_sphinx_theme"
 # html_theme = "sphinx_rtd_theme"
 html_logo = "_static/_images/mpopt.svg"
-html_favicon = "_static/_images/favicon.png"
+html_favicon = "_static/_images/favicon.jpg"
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
@@ -145,7 +145,7 @@ html_context = {
     # "github_url": "https://github.com", # or your GitHub Enterprise interprise
     "github_user": "mpopt",
     "github_repo": "mpopt",
-    "github_version": "master",
+    "github_version": "docs",
     "doc_path": "docs/source",
 }
 

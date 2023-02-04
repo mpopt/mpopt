@@ -17,7 +17,7 @@ Refer examples folder in GitHub
    :maxdepth: 2
    :caption: Contents:
 
-   ../notebooks/moon_lander.ipynb
+   notebooks/moon_lander.ipynb
 
 .. _multi-phase:
 
@@ -25,6 +25,5 @@ Multi-phase
 =============
 
 Refer examples folder in GitHub
-
 
 Next steps: `Notebooks <Notebooks>`_, `Package documentation <Package documentation>`_
