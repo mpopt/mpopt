@@ -47,8 +47,8 @@ sys.setrecursionlimit(1500)
 
 # -- General configuration ------------------------------------------------
 
-# html_theme = "pydata_sphinx_theme"
-html_theme = "sphinx_rtd_theme"
+html_theme = "pydata_sphinx_theme"
+# html_theme = "sphinx_rtd_theme"
 html_logo = "_static/_images/mpopt.svg"
 html_favicon = "_static/_images/favicon.png"
 
