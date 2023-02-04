@@ -24,6 +24,7 @@ pseudo-spectral collocation methods.
     notebooksPy.rst
     documentation.rst
     developer_notes.rst
+    ENDMATTER.rst
 
 A pdf version of this documentation can be downloaded from `PDF document <https://mpopt.readthedocs.io/_/downloads/en/latest/pdf/>`_
 
