@@ -61,4 +61,7 @@ For issues related to getting started examples, refer `issues <https://github.co
 
 Next steps: `Examples <examples>`_, `Notebooks <notebooks>`_
 
-.. notebook:: notebooks/getting_started.ipynb
+.. toctree::
+   :maxdepth: 1
+
+   notebooks/getting_started.ipynb

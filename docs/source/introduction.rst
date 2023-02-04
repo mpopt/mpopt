@@ -47,7 +47,7 @@ Main features of the package are :
 
 Access quick introduction `presentation PDF <http://dx.doi.org/10.13140/RG.2.2.14486.63040>`_.
 
-Quick start demo `Jupyter-notebook <notebooks/moon_lander.ipynb>`_.
+Quick start demo `Jupyter-notebook <notebooks/getting_started.ipynb>`_.
 
 Similar solver packages: `GPOPS II <https://www.gpops2.com/>`_, `ICLOCS2 <http://www.ee.ic.ac.uk/ICLOCS/>`_, `PSOPT <https://www.psopt.net/>`_, `DIRCOL <https://www.sim.informatik.tu-darmstadt.de/en/res/sw/dircol/>`_, `DIDO <https://elissarglobal.com/get-dido/>`_, `SOS <https://www.astos.de/products/sos/details>`_, `ACADO <https://acado.github.io/>`_, `OPTY <https://opty.readthedocs.io/>`_
 
