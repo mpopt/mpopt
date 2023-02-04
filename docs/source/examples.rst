@@ -13,13 +13,11 @@ Single phase
 
 Refer examples folder in GitHub
 
-```{toctree}
-    ---
-    maxdepth: 2
-    caption: Contents:
-    ---
-    docs/notebooks/moon_lander
-```
+.. toctree::
+   :maxdepth: 2
+   :caption: Contents:
+
+   ../notebooks/moon_lander
 
 .. _multi-phase:
 
