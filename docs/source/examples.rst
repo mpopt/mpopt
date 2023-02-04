@@ -17,7 +17,7 @@ Refer examples folder in GitHub
    :maxdepth: 2
    :caption: Contents:
 
-   ../notebooks/moon_lander
+   docs/notebooks/moon_lander
 
 .. _multi-phase:
 
