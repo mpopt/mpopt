@@ -1,6 +1,6 @@
 :github_url: https://github.com/mpopt/mpopt/blob/docs/docs/source/index.rst
 
-.. title:: Table of contents
+.. title:: MPOPT
 
 ########################################
 MPOPT : Optimal control problem solver
