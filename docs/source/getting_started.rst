@@ -61,4 +61,4 @@ For issues related to getting started examples, refer `issues <https://github.co
 
 Next steps: `Examples <examples>`_, `Notebooks <notebooks>`_
 
-.. include: notebooks/getting_started.ipynb
+.. notebook: notebooks/getting_started.ipynb
