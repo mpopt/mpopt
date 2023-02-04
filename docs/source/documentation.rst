@@ -7,7 +7,6 @@ Code documentation
 #######################
 
 .. toctree::
-   :numbered:
    :maxdepth: 1
    :caption: Contents
 

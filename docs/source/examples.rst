@@ -14,7 +14,7 @@ Single phase
 Refer examples folder in GitHub
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Contents:
 
    notebooks/moon_lander.ipynb
