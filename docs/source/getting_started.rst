@@ -1,24 +1,10 @@
+:github_url: https://github.com/mpopt/mpopt/blob/docs/docs/source/getting_started.rst
+
+.. title:: Getting started
+
+###################
 Getting started
---------------------
-
--  Install from `PyPI <https://pypi.org/project/mpopt/>`_ using the
-   following terminal command, then copy paste the code from example
-   below in a file (test.py) and run (python3 test.py) to confirm the
-   installation.
-
-.. code:: bash
-
-   pip install mpopt
-
--  (OR) Build directly from source (Terminal). Finally, ``make run`` to
-   solve the moon-lander example described below.
-
-.. code:: bash
-
-   git clone https://github.com/mpopt/mpopt.git --branch master
-   cd mpopt
-   make install
-   make test
+###################
 
 Solve moon-lander OCP in under 10 lines
 -----------------------------------------
@@ -68,15 +54,4 @@ fuel (u).
 -  For a detailed demo of the mpopt features, refer the notebook
    `getting_started.ipynb <https://github.com/mpopt/mpopt/blob/master/docs/notebooks/getting_started.ipynb>`_
 
-Resources
-------------
--  Detailed implementation aspects of MPOPT are part of the `master thesis <https://github.com/mpopt/mpopt/blob/01f4612ec84a5f6bec8f694c19b129d9fbc12527/docs/Devakumar-Master-Thesis-Report.pdf>`_.
--  Documentation at `mpopt.readthedocs.io <mpopt.readthedocs.io>`_
-
-Features and Limitations
----------------------------
-While MPOPT is able to solve any Optimal control formulation in the Bolza form, the present limitations of MPOPT are,
-
-- Only continuous functions and derivatives are supported
-- Dynamics and constraints are to be written in CasADi variables (Familiarity with casadi variables and expressions is expected)
-- The adaptive grid though successful in generating robust solutions for simple problems, doesnt have a concrete proof on convergence.
+Next steps: `Examples <Examples>`, `Notebooks <Notebooks>`

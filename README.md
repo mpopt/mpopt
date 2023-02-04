@@ -7,7 +7,10 @@ Status](https://coveralls.io/repos/github/mpopt/mpopt/badge.svg)](https://covera
 [![Documentation
 Status](https://readthedocs.org/projects/mpopt/badge/?version=latest)](https://mpopt.readthedocs.io/en/latest/?badge=latest)
 [![python](https://img.shields.io/pypi/pyversions/mpopt)](https://pypi.org/project/mpopt/)
-<!-- [![license](https://img.shields.io/pypi/l/mpopt)](https://github.com/mpopt/mpopt/blob/master/LICENSE) -->
+[![continuous-integration](https://github.com/mpopt/mpopt/actions/workflows/python-package.yml/badge.svg)](https://github.com/mpopt/mpopt/actions/workflows/python-package.yml)
+[![Downloads](https://static.pepy.tech/badge/mpopt)](https://pepy.tech/project/mpopt)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![License: LGPL v3](https://img.shields.io/badge/License-LGPL_v3-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)
 
 MPOPT
 =====
