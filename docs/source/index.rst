@@ -21,7 +21,7 @@ pseudo-spectral collocation methods.
     installation.rst
     getting_started.rst
     examples.rst
-    notebooks.rst
+    notebooksPy.rst
     documentation.rst
     developer_notes.rst
 
