@@ -47,10 +47,10 @@ sys.setrecursionlimit(1500)
 
 # -- General configuration ------------------------------------------------
 
-# html_theme = "pydata_sphinx_theme"
-html_theme = "sphinx_rtd_theme"
-html_logo = "_static/_images/mpopt.svg"
-html_favicon = "_static/_images/favicon.png"
+html_theme = "pydata_sphinx_theme"
+# html_theme = "sphinx_rtd_theme"
+html_logo = "docs/source/_static/_images/mpopt.svg"
+html_favicon = "docs/source/_static/_images/favicon.png"
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
@@ -104,7 +104,7 @@ master_doc = "index"
 # -- Project information -----------------------------------------------------
 # General information about the project.
 project = "mpopt"
-copyright = "2022, Devakumar THAMMISETTY, Colin Jones"
+copyright = "2023, Devakumar THAMMISETTY, Colin Jones"
 author = "Devakumar THAMMISETTY, Colin Jones"
 
 # The version info for the project you're documenting, acts as replacement for

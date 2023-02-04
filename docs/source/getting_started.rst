@@ -24,7 +24,7 @@ fuel (u).
     &                 &     & x_0(t_f) = 0; \ x_1(t_f) = 0\\
    &                  &      & x_0(t_0) = 10; \ x_1(t_0) = -2\\
    &                  &       & x_0 \geq 0; 0 \leq u \leq 3\\
-&                 &     & t_0 = 0.0; t_f = \text{free variable}
+   &                 &     & t_0 = 0.0; t_f = \text{free variable}
   \end{aligned}
 
 .. code:: python

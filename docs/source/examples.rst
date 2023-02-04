@@ -13,6 +13,14 @@ Single phase
 
 Refer examples folder in GitHub
 
+```{toctree}
+---
+maxdepth: 1
+caption: Contents:
+---
+docs/notebooks/moon_lander
+```
+
 .. _multi-phase:
 
 Multi-phase
