@@ -49,8 +49,8 @@ sys.setrecursionlimit(1500)
 
 html_theme = "pydata_sphinx_theme"
 # html_theme = "sphinx_rtd_theme"
-html_logo = "docs/source/_static/_images/mpopt.svg"
-html_favicon = "docs/source/_static/_images/favicon.png"
+html_logo = "_static/_images/mpopt.svg"
+html_favicon = "_static/_images/favicon.png"
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
@@ -63,7 +63,7 @@ extensions = [
     # 'sphinx.ext.graphviz', # Add the graphviz extension
     # 'sphinxext.rediraffe',
     "myst_parser",
-    "sphinx_panels",
+    "sphinx_design",
     "sphinx.ext.doctest",
     "sphinx.ext.todo",
     "sphinx.ext.mathjax",
@@ -86,7 +86,7 @@ napoleon_use_ivar = False
 napoleon_use_param = True
 napoleon_use_rtype = True
 
-panels_add_bootstrap_css = False
+# panels_add_bootstrap_css = False
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
