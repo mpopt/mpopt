@@ -2070,7 +2070,7 @@ class post_process:
             fig, axs = plt.subplots(1, 1)
 
         r, t = self.sort_residual_data(time, residuals, phases=phases)
-        print(t.shape, r.shape, time[0])
+        # print(t.shape, r.shape, time[0])
 
         self.plot_curve(
             axs,

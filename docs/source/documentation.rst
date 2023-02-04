@@ -2,6 +2,8 @@
 
 .. title:: package documentation
 
+.. _code-documentation:
+
 #######################
 Code documentation
 #######################
@@ -12,4 +14,4 @@ Code documentation
 
    mpopt/mpopt
 
-Next steps: `Developer notes <Developer notes>`_
+Next steps: `Developer notes <developer-notes>`_

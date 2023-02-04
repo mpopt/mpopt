@@ -314,7 +314,7 @@ ocp.dynamics = get_dynamics(0)
 # ocp.ubdu[2] = 5
 seg = 5
 p = [6] * seg
-mpo = mp.mpopt_adaptive(ocp, seg, p)
+mpo = mp.mpopt(ocp, seg, p)
 sol = mpo.solve()
 
 # Solve with drag enabled and initial guess
@@ -322,18 +322,18 @@ ocp.dynamics = get_dynamics(1)
 ocp.path_constraints[2] = lambda x, u, t: path_constraints2(x, u, t, dynP=1, gs=0)
 
 ocp.validate()
-mpo = mp.mpopt_adaptive(ocp, seg, p)
+mpo = mp.mpopt(ocp, seg, p)
 sol = mpo.solve(
     sol, max_iter=2, mpopt_options={"method": "control_slope", "sub_method": ""}
 )
 print("Final mass : ", -sol["f"] * m0)
 # Post processing
 post = mpo.process_results(sol, plot=False, scaling=False)
-x1, u1, t1 = post.get_data(phases=[0], interpolate=False)
+x1, u1, t1, _ = post.get_data(phases=[0], interpolate=False)
 print(x1[-1], u1[-1], t1[-1])
 # ************** Plot height and velocity ************************
 for phase_link in ocp.phase_links:
-    x, u, t = post.get_data(phases=phase_link, interpolate=True)
+    x, u, t, _ = post.get_data(phases=phase_link, interpolate=True)
     # figx, _ = post.plot_x([[0, 1, 2], [3, 4, 5], [6]])
     figu, axsu = post.plot_u(phases=phase_link)
     # figu, axsu = post.plot_u(
@@ -344,7 +344,7 @@ for phase_link in ocp.phase_links:
     y = np.column_stack((r, v))
     fig, axs = post.plot_single_variable(y, t, [[0], [1]], axis=0)
 
-    x, u, t = post.get_data(phases=phase_link, interpolate=False)
+    x, u, t, _ = post.get_data(phases=phase_link, interpolate=False)
     r = 1e-3 * (np.sqrt(x[:, 0] ** 2 + x[:, 1] ** 2 + x[:, 2] ** 2) - Re)
     v = np.sqrt(x[:, 3] ** 2 + x[:, 4] ** 2 + x[:, 5] ** 2)
     y = np.column_stack((r, v))
@@ -354,10 +354,10 @@ for phase_link in ocp.phase_links:
     print("Final mass, time : ", x[-1][-1], t[-1])
     mp.plt.show()
 
-x0, u0, t0 = post.get_data(phases=ocp.phase_links[0], interpolate=True)
-x1, u1, t1 = post.get_data(phases=ocp.phase_links[1], interpolate=True)
-x0o, u0o, t0o = post.get_data(phases=ocp.phase_links[0], interpolate=False)
-x1o, u1o, t1o = post.get_data(phases=ocp.phase_links[1], interpolate=False)
+x0, u0, t0, _ = post.get_data(phases=ocp.phase_links[0], interpolate=True)
+x1, u1, t1, _ = post.get_data(phases=ocp.phase_links[1], interpolate=True)
+x0o, u0o, t0o, _ = post.get_data(phases=ocp.phase_links[0], interpolate=False)
+x1o, u1o, t1o, _ = post.get_data(phases=ocp.phase_links[1], interpolate=False)
 
 r0 = 1e-3 * (np.sqrt(x0[:, 0] ** 2 + x0[:, 1] ** 2 + x0[:, 2] ** 2) - Re)
 v0 = 1e-3 * np.sqrt(x0[:, 3] ** 2 + x0[:, 4] ** 2 + x0[:, 5] ** 2)

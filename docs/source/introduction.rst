@@ -2,6 +2,8 @@
 
 .. title::Introduction
 
+.. _introduction:
+
 #################
 Introduction
 #################
@@ -49,4 +51,4 @@ Quick start demo `Jupyter-notebook <notebooks/moon_lander.ipynb>`_.
 
 Similar solver packages: `GPOPS II <https://www.gpops2.com/>`_, `ICLOCS2 <http://www.ee.ic.ac.uk/ICLOCS/>`_, `PSOPT <https://www.psopt.net/>`_, `DIRCOL <https://www.sim.informatik.tu-darmstadt.de/en/res/sw/dircol/>`_, `DIDO <https://elissarglobal.com/get-dido/>`_, `SOS <https://www.astos.de/products/sos/details>`_, `ACADO <https://acado.github.io/>`_, `OPTY <https://opty.readthedocs.io/>`_
 
-Next steps: `Installation <Installation>`_, `Getting started <Getting started>`_
+Next steps: `Installation <installation>`_, `Getting started <getting-started>`_

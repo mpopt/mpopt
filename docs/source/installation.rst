@@ -2,6 +2,8 @@
 
 .. title:: Installation
 
+.. _installation:
+
 ##########################
 Installation
 ##########################
@@ -25,4 +27,4 @@ Installation
 
 For discussions related to installation, refer `issues <https://github.com/mpopt/mpopt/discussions/14>`_
 
-Next steps: `Getting started <Getting started>`_, `Examples <Examples>`_
+Next steps: `Getting started <getting_started>`_, `Examples <examples>`_

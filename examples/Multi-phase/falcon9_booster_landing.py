@@ -205,7 +205,7 @@ ocp.validate()
 ocp.dynamics = get_dynamics(0)
 
 seg, p, max_iter = 6, 6, 2
-mpo = mp.mpopt_adaptive(ocp, seg, p)
+mpo = mp.mpopt(ocp, seg, p)
 mpo._INTERPOLATION_NODES_PER_SEG = 100
 mpo.lbh[0] = 1e-2
 sol = mpo.solve(max_iter=1, mpopt_options={"method": "control_slope", "sub_method": ""})

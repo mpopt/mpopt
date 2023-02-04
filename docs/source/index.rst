@@ -25,7 +25,6 @@ pseudo-spectral collocation methods.
     documentation.rst
     developer_notes.rst
     ENDMATTER.rst
-    ../notebooks/moon_lander
 
 A pdf version of this documentation can be downloaded from `PDF document <https://mpopt.readthedocs.io/_/downloads/en/latest/pdf/>`_
 
@@ -34,8 +33,8 @@ Resources
 -  Detailed implementation aspects of MPOPT are part of the `master thesis <http://dx.doi.org/10.13140/RG.2.2.19519.79528>`_.
 -  Quick introduction `presentation <http://dx.doi.org/10.13140/RG.2.2.14486.63040>`_.
 -  Documentation at `mpopt.readthedocs.io <mpopt.readthedocs.io>`_
--  List of solved `examples <Examples>`_
--  Features of MPOPT in `Jupyter Notebooks <Notebooks>`_
+-  List of solved `examples <examples>`_
+-  Features of MPOPT in `Jupyter Notebooks <getting_started>`_
 
 Features and Limitations
 ===============================

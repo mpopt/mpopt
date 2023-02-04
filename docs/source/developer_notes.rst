@@ -2,6 +2,8 @@
 
 .. title:: Developer notes
 
+.. _developer-notes:
+
 #######################
 Developer notes
 #######################

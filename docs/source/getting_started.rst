@@ -2,6 +2,8 @@
 
 .. title:: Getting started
 
+.. _getting-started:
+
 ###################
 Getting started
 ###################
@@ -55,8 +57,8 @@ fuel (u).
 -  For a detailed demo of the mpopt features, refer the notebook
    `getting_started.ipynb <https://github.com/mpopt/mpopt/blob/master/docs/notebooks/getting_started.ipynb>`_
 
-Try this example in the `Jupyter notebook <>`_.
-
 For issues related to getting started examples, refer `issues <https://github.com/mpopt/mpopt/discussions/13>`_
 
-Next steps: `Examples <Examples>`_, `Notebooks <Notebooks>`_
+Next steps: `Examples <examples>`_, `Notebooks <notebooks>`_
+
+.. include: notebooks/getting_started.ipynb
