@@ -6,6 +6,19 @@
 Examples
 ###################
 
-TODO
+.. _single-phase:
 
-Next steps: `Notebooks <Notebooks>`, `Package documentation <Package documentation>`
+Single phase
+=============
+
+Refer examples folder in GitHub
+
+.. _multi-phase:
+
+Multi-phase
+=============
+
+Refer examples folder in GitHub
+
+
+Next steps: `Notebooks <Notebooks>`_, `Package documentation <Package documentation>`_

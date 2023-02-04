@@ -19,12 +19,12 @@ fuel (u).
 .. math::
 
    \begin{aligned}
-   &\min_{x, u}        & \qquad & J = 0 + \int_{t_0}^{t_f}u\ dt\\
-   &\text{subject to} &      & \dot{x_0} = x_1; \dot{x_1} = u - 1.5\\
-   &                  &       & x_0 \geq 0; 0 \leq u \leq 3\\
-   &                  &      & x_0(t_0) = 10; \ x_1(t_0) = -2\\
+   & \min_{x, u}        & \qquad & J = 0 + \int_{t_0}^{t_f}u\ dt\\
+   & \text{subject to} &      & \dot{x_0} = x_1; \dot{x_1} = u - 1.5\\
     &                 &     & x_0(t_f) = 0; \ x_1(t_f) = 0\\
-    &                 &     & t_0 = 0.0; t_f = \text{free variable}
+   &                  &      & x_0(t_0) = 10; \ x_1(t_0) = -2\\
+   &                  &       & x_0 \geq 0; 0 \leq u \leq 3\\
+&                 &     & t_0 = 0.0; t_f = \text{free variable}
   \end{aligned}
 
 .. code:: python
@@ -40,6 +40,7 @@ fuel (u).
    ocp.running_costs[0] = lambda x, u, t: u[0]
    ocp.terminal_constraints[0] = lambda xf, tf, x0, t0: [xf[0], xf[1]]
    ocp.x00[0] = [10.0, -2.0]
+   ocp.lbx[0][0] = 0.0
    ocp.lbu[0], ocp.ubu[0] = 0, 3
 
    # Create optimizer(mpo), solve and post process(post) the solution
@@ -54,4 +55,8 @@ fuel (u).
 -  For a detailed demo of the mpopt features, refer the notebook
    `getting_started.ipynb <https://github.com/mpopt/mpopt/blob/master/docs/notebooks/getting_started.ipynb>`_
 
-Next steps: `Examples <Examples>`, `Notebooks <Notebooks>`
+Try this example in the `Jupyter notebook <>`_.
+
+For issues related to getting started examples, refer `issues <https://github.com/mpopt/mpopt/discussions/13>`_
+
+Next steps: `Examples <Examples>`_, `Notebooks <Notebooks>`_

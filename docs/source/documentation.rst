@@ -3,13 +3,14 @@
 .. title:: package documentation
 
 #######################
-Package documentation
+Code documentation
 #######################
 
 .. toctree::
+   :numbered:
    :maxdepth: 1
    :caption: Contents
 
    mpopt/mpopt
 
-Next steps: `Developer notes <Developer notes>`
+Next steps: `Developer notes <Developer notes>`_

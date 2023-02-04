@@ -6,7 +6,7 @@
 MPOPT : Optimal control problem solver
 ########################################
 
-Simple to use, optimal control problem solver library in Python `GitHub <https://github.com/mpopt/mpopt/>`_.
+Simple to use, optimal control problem solver library in Python: `GitHub <https://github.com/mpopt/mpopt/>`_.
 
 *MPOPT* libray is an open-source, extensible, customizable and easy to use
 python package that includes a collection of modules to solve
@@ -14,6 +14,7 @@ multi-stage non-linear optimal control problems(OCP) in the standard Bolza form 
 pseudo-spectral collocation methods.
 
 .. toctree::
+    :numbered:
     :maxdepth: 1
 
     introduction.rst
@@ -31,8 +32,8 @@ Resources
 -  Detailed implementation aspects of MPOPT are part of the `master thesis <http://dx.doi.org/10.13140/RG.2.2.19519.79528>`_.
 -  Quick introduction `presentation <http://dx.doi.org/10.13140/RG.2.2.14486.63040>`_.
 -  Documentation at `mpopt.readthedocs.io <mpopt.readthedocs.io>`_
--  List of solved `examples <Examples>`
--  Features of MPOPT in `Jupyter Notebooks <Notebooks>`
+-  List of solved `examples <Examples>`_
+-  Features of MPOPT in `Jupyter Notebooks <Notebooks>`_
 
 Features and Limitations
 ===============================

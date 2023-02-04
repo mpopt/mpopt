@@ -54,7 +54,7 @@ ocp.terminal_constraints[0] = terminal_constraints0
 
 ocp.tf0[0] = 4.0
 ocp.x00[0] = [10.0, -2.0]
-ocp.lbx[0] = [-20.0, -20.0]
+ocp.lbx[0] = [0.0, -20.0]
 ocp.ubx[0] = [20.0, 20.0]
 ocp.lbu[0] = 0
 ocp.ubu[0] = 3

@@ -8,4 +8,4 @@ Notebooks
 
 TODO
 
-Next steps: `Package documentation <Package documentation>`
+Next steps: `Package documentation <Package documentation>`_

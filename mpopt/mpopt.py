@@ -3844,7 +3844,7 @@ class CollocationRoots:
     """
 
     # Min and max for the roots (Not yet implemented)
-    _TAU_MIN = 0
+    _TAU_MIN = -1
     _TAU_MAX = 1
 
     def __init__(self, scheme: str = "LGR"):
