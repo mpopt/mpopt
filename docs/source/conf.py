@@ -70,6 +70,7 @@ extensions = [
     "sphinx.ext.ifconfig",
     "sphinx.ext.viewcode",
     "sphinx.ext.githubpages",
+    "myst_nb",
 ]
 
 # Napoleon settings
