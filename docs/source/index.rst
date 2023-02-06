@@ -26,38 +26,38 @@ pseudo-spectral collocation methods.
     developer_notes.rst
     ENDMATTER.rst
 
-- A pdf version of this documentation can be downloaded from `PDF document <https://mpopt.readthedocs.io/_/downloads/en/latest/pdf/>`_
-- A must read Jupyter notebook on MPOPT features `Getting Started <notebooks/getting_started.ipynb>`_
-
 Resources
 ===========
 -  Detailed implementation aspects of MPOPT are part of the `master thesis <http://dx.doi.org/10.13140/RG.2.2.19519.79528>`_.
 -  Quick introduction `presentation <http://dx.doi.org/10.13140/RG.2.2.14486.63040>`_.
--  Documentation at `mpopt.readthedocs.io <https://mpopt.readthedocs.io/en/latest/>`_
 -  List of solved `examples <examples>`_
 -  Features of MPOPT in `Jupyter Notebooks <notebooks/getting_started.ipynb>`_
+
+A pdf version of this documentation can be downloaded from `PDF document <https://mpopt.readthedocs.io/_/downloads/en/latest/pdf/>`_
+
+A must read Jupyter notebook on MPOPT features `Getting Started <notebooks/getting_started.ipynb>`_
 
 Case studies
 ==============
 
 - Quick demo of the solver using simple moon-lander fuel minimization OCP (bang-bang type control) : `Quick features demo notebook <notebooks/getting_started.ipynb>`__
 
-  .. image:: _static/ml_adaptive.eps
-    :width:400px
-    :height:200px
-    :alt: Adaptive solution for the `moon lander OCP <notebooks/moon_lander.ipynb>`_. States represent the altitude and velocity profile. Controls gives the optimal throttle profile.
+.. image:: _static/mpopt.svg
+  :width:400px
+  :height:200px
+  :alt: Adaptive solution for the `moon lander OCP <notebooks/moon_lander.ipynb>`_. States represent the altitude and velocity profile. Controls gives the optimal throttle profile.
 
 - A complex real-world example of SpaceX falcon9 rocket orbital launch with booster recovery. OCP is defined to find the optimal trajectory and the thrust profile for booster return. `SpaceX Falcon9 booster recovery notebook <notebooks/falcon9_to_orbit.ipynb>`
 
-  .. image:: _static/falcon9_mpopt.svg
-    :width:400px
-    :height:200px
-    :alt: Adaptive solution for the `SpaceX Falcon9 OCP <notebooks/falcon9_to_orbit.ipynb>`_. Altitude and velocity profile for the payload as well as booster are plotted together.
+.. image:: _static/falcon9_mpopt.svg
+  :width:400px
+  :height:200px
+  :alt: Adaptive solution for the `SpaceX Falcon9 OCP <notebooks/falcon9_to_orbit.ipynb>`_. Altitude and velocity profile for the payload as well as booster are plotted together.
 
-  .. image:: `_static/real_time_faclon9_NROL76.png`
-    :width:400px
-    :height:200px
-    :alt: Real-time data of a SpaceX Falcon9 NROL76 launch, for comparison with MPOPT solution. The ballistic altitude profile and velocity profile is closely captured with MPOPT.
+.. image:: _static/real_time_faclon9_NROL76.png
+  :width:400px
+  :height:200px
+  :alt: Real-time data of a SpaceX Falcon9 NROL76 launch, for comparison with MPOPT solution. The ballistic altitude profile and velocity profile is closely captured with MPOPT.
 
 Features and Limitations
 ===============================
