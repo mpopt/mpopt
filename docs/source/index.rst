@@ -42,7 +42,7 @@ Case studies
 
 - Quick demo of the solver using simple moon-lander fuel minimization OCP (bang-bang type control) : `Quick features demo notebook <notebooks/getting_started.ipynb>`__
 
-.. image:: ./_static/mpopt.svg
+.. image:: /_static/mpopt.svg
   :align:center
   :width:400px
   :height:200px
@@ -50,13 +50,13 @@ Case studies
 
 - A complex real-world example of SpaceX falcon9 rocket orbital launch with booster recovery. OCP is defined to find the optimal trajectory and the thrust profile for booster return. `SpaceX Falcon9 booster recovery notebook <notebooks/falcon9_to_orbit.ipynb>`
 
-.. image:: ./_static/falcon9_mpopt.svg
+.. image:: /_static/falcon9_mpopt.svg
   :align:center
   :width:400px
   :height:200px
   :alt: Adaptive solution for the `SpaceX Falcon9 OCP <notebooks/falcon9_to_orbit.ipynb>`_. Altitude and velocity profile for the payload as well as booster are plotted together.
 
-.. image:: ./_static/real_time_faclon9_NROL76.png
+.. image:: /_static/real_time_faclon9_NROL76.png
   :align:center
   :width:400px
   :height:200px
