@@ -40,11 +40,11 @@ A must read Jupyter notebook on MPOPT features `Getting Started <notebooks/getti
 Case studies
 ==============
 
-- Quick demo of the solver using simple moon-lander fuel minimization OCP (bang-bang type control) : `Quick features demo notebook <notebooks/getting_started.ipynb>`__
+- Quick demo of the solver using simple moon-lander fuel minimization OCP (bang-bang type control), refer `Quick features demo notebook <notebooks/getting_started.ipynb>`__ for more details. The image below shows the optimal altitude and the velocity profile (states) along with the optimal throttle (controls) to get minimum fuel trajectory to land on moon.
 
 .. image:: ./_static/ml_adaptive.png
 
-- A complex real-world example of SpaceX falcon9 rocket orbital launch with booster recovery. OCP is defined to find the optimal trajectory and the thrust profile for booster return. `SpaceX Falcon9 booster recovery notebook <notebooks/falcon9_to_orbit.ipynb>`_. The first image below is MPOPT solution and the second one is real-time data fro the launch of NROL76 mission.
+- A complex real-world example of The SpaceX falcon9 rocket orbital launch with the booster recovery results are shown below. OCP is defined to find the optimal trajectory and the thrust profile for booster return, refer `SpaceX Falcon9 booster recovery notebook <notebooks/falcon9_to_orbit.ipynb>`_ for more details. The first image below is the MPOPT solution using adaptive mesh and the second one is the real-time data of the SpaceX Falcon9 launch of NROL76 mission. The ballistic altitude profile of the booster is evident in both MPOPT solution and the real-time telemetry. Further, the MPOPT velocity solution compares well with the real-time data even though the formulation is only a first order representation of the actual booster recovery problem.
 
 .. image:: ./_static/falcon9_mpopt.svg
 .. image:: ./_static/real_time_falcon9_NROL76.png
