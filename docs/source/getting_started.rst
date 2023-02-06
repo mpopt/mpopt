@@ -59,7 +59,7 @@ fuel (u).
 
 For issues related to getting started examples, refer `issues <https://github.com/mpopt/mpopt/discussions/13>`_
 
-Next steps: `Examples <examples>`_, `Notebooks <notebooks>`_
+Next steps: :doc:`./examples`_, :doc:`./notebooks`_
 
 .. toctree::
    :maxdepth: 1

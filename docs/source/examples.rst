@@ -37,4 +37,4 @@ Refer examples folder in GitHub
    notebooks/falcon9_to_orbit.ipynb
 
 
-Next steps: :ref:notebooks, `Package documentation <code-documentation>`_
+Next steps: :doc:`notebooks`_, :doc:`documentation`_
