@@ -42,7 +42,7 @@ Case studies
 
 - Quick demo of the solver using simple moon-lander fuel minimization OCP (bang-bang type control) : `Quick features demo notebook <notebooks/getting_started.ipynb>`__
 
-.. image:: _static/mpopt.svg
+.. image:: mpopt.svg
   :width:400px
   :height:200px
   :alt: Adaptive solution for the `moon lander OCP <notebooks/moon_lander.ipynb>`_. States represent the altitude and velocity profile. Controls gives the optimal throttle profile.
