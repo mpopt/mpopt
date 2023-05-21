@@ -40,7 +40,7 @@ A must read Jupyter notebook on MPOPT features `Getting Started <notebooks/getti
 Case studies
 ==============
 
-- Quick demo of the solver using simple moon-lander fuel minimization OCP (bang-bang type control), refer `Quick features demo notebook <notebooks/getting_started.ipynb>`__ for more details. The image below shows the optimal altitude and the velocity profile (states) along with the optimal throttle (controls) to get minimum fuel trajectory to land on moon.
+- Quick demo of the solver using simple moon-lander fuel minimization OCP (bang-bang type control), refer `Quick features demo notebook <notebooks/getting_started.ipynb>`__ for more details. The image below shows the optimal altitude and the velocity profile (states) along with the optimal throttle (controls) to get minimum fuel trajectory to land on the Moon.
 
 .. image:: ./_static/ml_adaptive.png
 
