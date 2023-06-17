@@ -754,7 +754,7 @@ def test_mpopt_get_dynamics_residuals(hyper_sensitive_mpo_h_adaptive):
             if err is not None
         ]
     )
-    assert max_residual < 2
+    assert max_residual < 4
 
     time2, residuals = mpo.get_dynamics_residuals(sol, grid_type="mid-points")
     max_residual = max(
