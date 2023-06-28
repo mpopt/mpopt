@@ -25,6 +25,7 @@ import casadi as ca  # type: ignore
 import matplotlib.pyplot as plt
 import copy
 import math
+import time
 
 
 class mpopt:
@@ -50,6 +51,7 @@ class mpopt:
 
     _GRID_TYPE = "spectral"  # mid-points, spectral
     _MAX_GRID_POINTS = 15  # Per phase
+    _MUTE_ = False
 
     def __init__(
         self: "mpopt",
@@ -780,6 +782,7 @@ class mpopt:
             :solution: Solution as reported by the given nlp_solver object
 
         """
+        start_time = time.monotonic()
         if (not self._nlpsolver_initialized) or (reinitialize_nlp):
             self.create_solver(solver=solver, options=nlp_solver_options)
 
@@ -791,8 +794,23 @@ class mpopt:
 
         solver_inputs = self.get_solver_warm_start_input_parameters(initial_solution)
         solver_inputs["p"] = self._nlp_sw_params
+        end_time_ocp = time.monotonic()
 
         solution = self.nlp_solver(**solver_inputs, **self.nlp_bounds)
+
+        end_time = time.monotonic()
+
+        if not self._MUTE_:
+            print(f"\n *********** MPOPT Summary ********** \n")
+            print(" Optimal cost (J): ", solution["f"], "\n")
+            print(f" Solved in {round((end_time - start_time)*1e3, 3)} ms")
+
+            print(
+                f" \t OCP transcription time  : {round((end_time_ocp - start_time)*1e3, 3)} ms"
+            )
+            print(
+                f" \t NLP solution time       : {round((end_time - end_time_ocp)*1e3, 3)} ms"
+            )
 
         return solution
 
@@ -858,7 +876,14 @@ class mpopt:
 
         return trajectories
 
-    def process_results(self, solution, plot: bool = True, scaling: bool = False):
+    def process_results(
+        self,
+        solution,
+        plot: bool = True,
+        scaling: bool = False,
+        residual_x: bool = False,
+        residual_dx: bool = True,
+    ):
         """Post process the solution of the NLP
 
         args:
@@ -869,14 +894,32 @@ class mpopt:
             :scaling: bool
                 True - Plot the scaled variables
                 False - Plot unscaled variables meaning, original solution to the problem
+            :residuals: bool
+                To plot norma of the residual in the dynamics evaluated at points different from collocation nodes
 
         returns:
             :post: Object of post_process class (Initialized)
 
         """
+        start_time = time.monotonic()
         trajectories = [
             self.init_trajectories(phase) for phase in range(self._ocp.n_phases)
         ]
+        traj_time = time.monotonic()
+
+        resid_value = {}
+        if residual_x:
+            x_int, u_int, ti, res_x = self.get_states_residuals(solution)
+            resid_value["t_x"] = [ti, res_x]
+            rx_time = time.monotonic()
+        if residual_dx:
+            tdx, res_dx = self.get_dynamics_residuals(solution)
+            resid_value["t_dx"] = [tdx, res_dx]
+            rdx_time = time.monotonic()
+        else:
+            resid_value = None
+
+        r_time = time.monotonic()
 
         options = {
             "nx": self._ocp.nx,
@@ -897,13 +940,38 @@ class mpopt:
             "tau1": self.tau1,
             "interpolation_depth": 3,
             "seg_widths": self._nlp_sw_params,
+            "residuals": resid_value,
         }
+
         post = post_process(solution, trajectories, options)
 
         if plot:
             for phases in self._ocp.phases_to_plot:
-                post.plot_phases(phases)
-            # plt.show()
+                residuals = residual_x or residual_dx
+                post.plot_phases(phases, residuals=residuals)
+
+        post_time = time.monotonic()
+
+        if not self._MUTE_:
+            print(f"\n Post processed in {round((post_time - start_time)*1e3, 3)} ms")
+            print(
+                f" \t Solution retrieval            : {round((traj_time - start_time)*1e3, 3)} ms"
+            )
+            if residual_x:
+                print(
+                    f" \t Residual in states             : {round((rx_time - traj_time)*1e3, 3)} ms"
+                )
+                if residual_dx:
+                    print(
+                        f" \t Residual in dynamics          : {round((rdx_time - rx_time)*1e3, 3)} ms"
+                    )
+            elif residual_dx:
+                print(
+                    f" \t Residual in dynamics           : {round((rdx_time - traj_time)*1e3, 3)} ms"
+                )
+            print(
+                f" \t Process solution and plot      : {round((post_time - r_time)*1e3, 3)} ms"
+            )
 
         return post
 
@@ -1005,6 +1073,7 @@ class mpopt:
     def get_states_residuals(
         self,
         solution,
+        phases=None,
         nodes=None,
         grid_type="spectral",
         residual_type=None,
@@ -1019,22 +1088,30 @@ class mpopt:
         args:
             :grid_type: target grid type (normalized between 0 and 1)
             :solution: solution of the NLP as reported by the solver
+            :phases: As a list with indices ex. [0,1]
             :nodes: grid where the residual is computed (between tau0, tau1) in a list (nodes[0] -> Nodes for phase0)
             :options: Options for the target grid
 
         returns:
             :residuals: residual vector for the dynamics at the given taus
         """
-        residuals, ti = [None] * self._ocp.n_phases, [None] * self._ocp.n_phases
-        for phase in range(self._ocp.n_phases):
+        x_int, u_int, residuals, ti = (
+            [None] * self._ocp.n_phases,
+            [None] * self._ocp.n_phases,
+            [None] * self._ocp.n_phases,
+            [None] * self._ocp.n_phases,
+        )
+        if phases == None:
+            phases = range(self._ocp.n_phases)
+        for phase in phases:
             if nodes is None:
                 target_nodes = self.get_residual_grid_taus(phase, grid_type=grid_type)
             else:
                 target_nodes = nodes[phase]
 
             (
-                x_phase,
-                u_phase,
+                x_int[phase],
+                u_int[phase],
                 ti[phase],
                 residuals[phase],
             ) = self.compute_states_from_solution_dynamics(
@@ -1045,7 +1122,7 @@ class mpopt:
             if residual_type == "relative":
                 # print(residuals[phase])  # = np.array(residuals[phase])
                 max_val = np.zeros(self._ocp.nx)
-                for seg, res_seg in enumerate(x_phase):
+                for seg, res_seg in enumerate(x_int[phase]):
                     if res_seg is not None:
                         seg_max = abs(np.array(res_seg)).max(axis=0)
                         for id, val in enumerate(max_val):
@@ -1064,7 +1141,7 @@ class mpopt:
                 ti, residuals, phases=range(self._ocp.n_phases), fig=fig, axs=axs
             )
 
-        return ti, residuals
+        return x_int, u_int, ti, residuals
 
     def get_residual_grid_taus(self, phase: int = 0, grid_type: str = None):
         """Select the non-collocation nodes in a given phase
@@ -1386,7 +1463,7 @@ class mpopt:
             )  # numpy multiplication
             residual_phase[seg] = Dxi[start:end, :].full().reshape(F.shape) - F
             dyn_phase[seg] = F
-            ti_phase[seg] = t
+            ti_phase[seg] = np.concatenate(np.array(t).reshape(len(t), 1))
 
         return ti_phase, residual_phase, dyn_phase
 
@@ -1534,6 +1611,12 @@ class post_process:
             else CollocationRoots._TAU_MAX
         )
 
+        # Residuals data in options
+        if "residuals" in options:
+            self.residuals = options["residuals"]
+        else:
+            self.residuals = None
+
     def get_trajectories(self, phase: int = 0):
         """Get trajectories of states, controls and time vector for single phase
 
@@ -1546,12 +1629,12 @@ class post_process:
                 u - controls
                 t - corresponding time vector
         """
-        if "seg_widths" in self.options:
-            x, u, t, t0, tf, a = self.trajectories[phase](
-                self.solution["x"], self.options["seg_widths"]
-            )
-        else:
-            x, u, t, t0, tf, a = self.trajectories[phase](self.solution["x"])
+        # if "seg_widths" in self.options:
+        x, u, t, t0, tf, a = self.trajectories[phase](
+            self.solution["x"], self.options["seg_widths"]
+        )
+        # else:
+        # x, u, t, t0, tf, a = self.trajectories[phase](self.solution["x"])
         x_opt, u_opt, t_opt, a_opt = (x.full(), u.full(), t.full(), a.full())
 
         scale_t = self.options["scale_t"] if "scale_t" in self.options else 1.0
@@ -1773,6 +1856,7 @@ class post_process:
         self,
         phases: List = None,
         interpolate: bool = True,
+        residuals: bool = True,
         fig=None,
         axs=None,
         tics: List = ["-"] * 15,
@@ -1797,6 +1881,13 @@ class post_process:
             else:
                 phase = [0]
 
+        if residuals:
+            if self.residuals is not None:
+                fig = plt.figure()
+                ax0 = plt.subplot(2, 2, 1)
+                ax1 = plt.subplot(2, 2, 3)
+                axs = [ax0, ax1]
+
         if interpolate:
             xi, ui, ti, _ = self.get_data(phases=phases, interpolate=interpolate)
             fig, axs = self.plot_all(
@@ -1805,6 +1896,46 @@ class post_process:
             tics = ["."] * 15
         x, u, t, _ = self.get_data(phases=phases, interpolate=False)
         fig, axs = self.plot_all(x, u, t, tics=tics, fig=fig, axs=axs, name=name)
+
+        if residuals:
+            if self.residuals is not None:
+                if ("t_x" in self.residuals) and ("t_dx" in self.residuals):
+                    ax2 = plt.subplot(2, 2, 2)
+                    fig, axs = self.plot_residuals(
+                        self.residuals["t_x"][0],
+                        self.residuals["t_x"][1],
+                        name="state error",
+                        fig=fig,
+                        axs=ax2,
+                    )
+                    ax3 = plt.subplot(2, 2, 4)
+                    fig, axs = self.plot_residuals(
+                        self.residuals["t_dx"][0],
+                        self.residuals["t_dx"][1],
+                        name="dynamics error",
+                        fig=fig,
+                        axs=ax3,
+                    )
+                    axs = [ax0, ax1, ax2, ax3]
+                else:
+                    ax2 = plt.subplot(1, 2, 2)
+                    if "t_x" in self.residuals:
+                        fig, axs = self.plot_residuals(
+                            self.residuals["t_x"][0],
+                            self.residuals["t_x"][1],
+                            name="state error",
+                            fig=fig,
+                            axs=ax2,
+                        )
+                    else:
+                        fig, axs = self.plot_residuals(
+                            self.residuals["t_dx"][0],
+                            self.residuals["t_dx"][1],
+                            name="dynamics error",
+                            fig=fig,
+                            axs=ax2,
+                        )
+                    axs = [ax0, ax1, ax2]
 
         return fig, axs
 
@@ -2048,7 +2179,7 @@ class post_process:
 
             r = np.concatenate(r)
 
-        t = np.concatenate(np.concatenate(t))
+        t = np.concatenate(t)
         r = r.reshape(t.shape[0], 1)
         return (r, t)
 
@@ -2056,7 +2187,7 @@ class post_process:
     def plot_residuals(
         self,
         time,
-        residuals: np.ndarray = None,
+        residuals,
         phases: List = [0],
         name=None,
         fig=None,
@@ -2205,7 +2336,7 @@ class mpopt_h_adaptive(mpopt):
                     ]
                 )
                 if sw_percentage_change.all():
-                    # print("Stopping the iterations: Change in width less than 5%")
+                    print("Stopping the iterations: Change in width less than 5%")
                     self._nlp_sw_params = sw_old
                     break
 
@@ -3020,17 +3151,25 @@ class mpopt_adaptive(mpopt):
         a = self.A[:, phase]
         t0, tf = self.t0[phase] / self._ocp.scale_t, self.tf[phase] / self._ocp.scale_t
         t = ca.vertcat(*self.time_grid[phase])
+        tmp_seg = ca.SX.sym("htmp_seg", self.n_segments, self._ocp.n_phases)
         trajectories = ca.Function(
             "x_traj",
-            [self.Z],
+            [self.Z, tmp_seg[:]],
             [x, u, t, t0, tf, a],
-            ["z"],
+            ["z", "h"],
             ["x", "u", "t", "t0", "tf", "a"],
         )
 
         return trajectories
 
-    def process_results(self, solution, plot: bool = True, scaling: bool = False):
+    def process_results(
+        self,
+        solution,
+        plot: bool = True,
+        scaling: bool = False,
+        residual_x: bool = False,
+        residual_dx: bool = True,
+    ):
         """Post process the solution of the NLP
 
         args:
@@ -3041,13 +3180,32 @@ class mpopt_adaptive(mpopt):
             :scaling: bool
                 True - Plot the scaled variables
                 False - Plot unscaled variables meaning, original solution to the problem
+            :residuals: bool
+                To plot norma of the residual in the dynamics evaluated at points different from collocation nodes
 
         returns:
             :post: Object of post_process class (Initialized)
+
         """
+        start_time = time.monotonic()
         trajectories = [
             self.init_trajectories(phase) for phase in range(self._ocp.n_phases)
         ]
+        traj_time = time.monotonic()
+
+        resid_value = {}
+        if residual_x:
+            x_int, u_int, ti, res_x = self.get_states_residuals(solution)
+            resid_value["t_x"] = [ti, res_x]
+            rx_time = time.monotonic()
+        if residual_dx:
+            tdx, res_dx = self.get_dynamics_residuals(solution)
+            resid_value["t_dx"] = [tdx, res_dx]
+            rdx_time = time.monotonic()
+        else:
+            resid_value = None
+
+        r_time = time.monotonic()
 
         options = {
             "nx": self._ocp.nx,
@@ -3064,16 +3222,42 @@ class mpopt_adaptive(mpopt):
             "scale_t": self._ocp.scale_t,
             "scaling": scaling,
             "colloc_scheme": self.colloc_scheme,
-            "tau0": CollocationRoots._TAU_MIN,
-            "tau1": CollocationRoots._TAU_MAX,
+            "tau0": self.tau0,
+            "tau1": self.tau1,
             "interpolation_depth": 3,
+            "seg_widths": self._nlp_sw_params,
+            "residuals": resid_value,
         }
+
         post = post_process(solution, trajectories, options)
 
         if plot:
             for phases in self._ocp.phases_to_plot:
-                post.plot_phases(phases)
-            # plt.show()
+                residuals = residual_x or residual_dx
+                post.plot_phases(phases, residuals=residuals)
+
+        post_time = time.monotonic()
+
+        if self._MUTE_:
+            print(f"\n Post processed in {round((post_time - start_time)*1e3, 3)} ms")
+            print(
+                f" \t Solution retrieval            : {round((traj_time - start_time)*1e3, 3)} ms"
+            )
+            if residual_x:
+                print(
+                    f" \t Residual in states             : {round((rx_time - traj_time)*1e3, 3)} ms"
+                )
+                if residual_dx:
+                    print(
+                        f" \t Residual in dynamics          : {round((rdx_time - rx_time)*1e3, 3)} ms"
+                    )
+            elif residual_dx:
+                print(
+                    f" \t Residual in dynamics           : {round((rdx_time - traj_time)*1e3, 3)} ms"
+                )
+            print(
+                f" \t Process solution and plot      : {round((post_time - r_time)*1e3, 3)} ms"
+            )
 
         return post
 
@@ -3980,7 +4164,14 @@ class CollocationRoots:
 
 
 def solve(
-    ocp, n_segments=1, poly_orders=9, scheme="LGR", plot=True, solve_dict: Dict = dict()
+    ocp,
+    n_segments=1,
+    poly_orders=9,
+    scheme="LGR",
+    plot=True,
+    solve_dict: Dict = dict(),
+    residual_x: bool = False,
+    residual_dx: bool = True,
 ):
     """Solve OCP by creating optimizer and process results
 
@@ -3997,7 +4188,9 @@ def solve(
     """
     mpo = mpopt(ocp, n_segments=n_segments, poly_orders=poly_orders, scheme=scheme)
     solution = mpo.solve(**solve_dict)
-    post = mpo.process_results(solution, plot=plot)
+    post = mpo.process_results(
+        solution, plot=plot, residual_x=residual_x, residual_dx=residual_dx
+    )
 
     return (mpo, post)
 
@@ -4153,7 +4346,7 @@ class mpopt_ph_adaptive(mpopt):
             # taus = [taus for phase in range(self._ocp.n_phases)]
 
             # Step 2 : Compute the maximum residual in the states using gaussian quadrature of dynamics (Refer Anil V. Rao http://dx.doi.org/10.1016/j.jfranklin.2015.05.028)
-            time_r, residual_r = self.get_states_residuals(
+            _, _, time_r, residual_r = self.get_states_residuals(
                 solution, grid_type=grid_type, residual_type="relative", plot=False
             )
             max_residual = self.get_abs_max_residual(residual_r)
@@ -4205,7 +4398,7 @@ class mpopt_ph_adaptive(mpopt):
             solution_new = self.solve(reinitialize_nlp=True, **solve_dict)
 
             # Step-2  : Compute the maximum residual in the states using gaussian quadrature of dynamics (Refer Anil V. Rao http://dx.doi.org/10.1016/j.jfranklin.2015.05.028)
-            time_r_new, residual_r_new = self.get_states_residuals(
+            _, _, time_r_new, residual_r_new = self.get_states_residuals(
                 solution_new,
                 grid_type=grid_type,
                 residual_type="relative",

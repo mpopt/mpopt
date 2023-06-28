@@ -84,15 +84,16 @@ ocp.ubtf[0] = 10 + 3.0
 ocp.validate()
 mpo = mp.mpopt(ocp, 20, 4, "LGR")
 solution = mpo.solve()
+
 post = mpo.process_results(solution)
 
 # ocp.midu[0] = 1
 mpo = mp.mpopt_h_adaptive(ocp, 20, 4, "LGR")
 # options = {"method": "residual", "sub_method": "merge_split"}
 options = {"method": "residual", "sub_method": "equal_area"}
-options = {"method": "control_slope", "sub_method": ""}
-# mpo.tol_residual[0] = 1e-3
-solution = mpo.solve(max_iter=10, mpopt_options=options)
+# options = {"method": "control_slope", "sub_method": ""}
+mpo.tol_residual[0] = 1e-4
+solution = mpo.solve(max_iter=2, mpopt_options=options)
 # solution = mpo.solve()  # , mpopt_options={"method": "control_slope"})
 post = mpo.process_results(solution)
 

@@ -22,11 +22,11 @@ Created: 13th May 2020
 Author : Devakumar Thammisetty
 Description : Hyper-sensitive OCP
 """
-try:
-    from mpopt import mp
-except ModuleNotFoundError:
-    from context import mpopt
-    from mpopt import mp
+# try:
+#     from mpopt import mp
+# except ModuleNotFoundError:
+from context import mpopt
+from mpopt import mp
 
 ocp = mp.OCP(n_states=1, n_controls=1, n_phases=1)
 
@@ -44,7 +44,7 @@ if __name__ == "__main__":
     seg, p = 50, 3
     mpo = mp.mpopt(ocp, seg, p)
     sol = mpo.solve()
-    post = mpo.process_results(sol, plot=True)
+    post = mpo.process_results(sol)
     mp.plt.title(
         f"non-adaptive solution segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
     )
