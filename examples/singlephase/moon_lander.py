@@ -22,9 +22,9 @@ Created: 5th May 2020
 Author : Devakumar Thammisetty
 """
 try:
+    from context import mpopt
     from mpopt import mp
 except ModuleNotFoundError:
-    from context import mpopt
     from mpopt import mp
 
 ocp = mp.OCP(n_states=2, n_controls=1)
@@ -62,6 +62,8 @@ ocp.lbtf[0], ocp.ubtf[0] = 3, 5
 
 ocp.validate()
 
+moon_lander = mp.mpopt(ocp, 5, 4)
+
 if __name__ == "__main__":
     mpo = mp.mpopt(ocp, 5, 4)
     sol = mpo.solve()
@@ -70,11 +72,11 @@ if __name__ == "__main__":
         f"non-adaptive solution segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
     )
 
-    mpo = mp.mpopt_h_adaptive(ocp, 10, 4)
+    mpo = mp.mpopt_h_adaptive(ocp, 20, 4)
     sol = mpo.solve(
-        max_iter=3, mpopt_options={"method": "residual", "sub_method": "merge_split"}
+        max_iter=2, mpopt_options={"method": "residual", "sub_method": "merge_split"}
     )
-    post = mpo.process_results(sol, plot=True)
+    post = mpo.process_results(sol)
     mp.plt.title(
         f"Adaptive solution: merge_split : segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
     )

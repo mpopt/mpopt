@@ -22,11 +22,11 @@ Created: 13th May 2020
 Author : Devakumar Thammisetty
 Description : Hyper-sensitive OCP
 """
-# try:
-#     from mpopt import mp
-# except ModuleNotFoundError:
-from context import mpopt
-from mpopt import mp
+try:
+    from context import mpopt
+    from mpopt import mp
+except ModuleNotFoundError:
+    from mpopt import mp
 
 ocp = mp.OCP(n_states=1, n_controls=1, n_phases=1)
 
@@ -39,6 +39,9 @@ ocp.lbtf[0] = ocp.ubtf[0] = 1000.0
 ocp.scale_t = 1 / 1000.0
 
 ocp.validate()
+
+seg, p = 50, 3
+hysens = mp.mpopt(ocp, seg, p)
 
 if __name__ == "__main__":
     seg, p = 50, 3

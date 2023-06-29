@@ -22,46 +22,43 @@ Created: 5th May 2020
 Author : Devakumar Thammisetty
 """
 try:
-    from mpopt import mp
-except ModuleNotFoundError:
     from context import mpopt
     from mpopt import mp
+except ModuleNotFoundError:
+    from mpopt import mp
 
-ocp = mp.OCP(n_states=2, n_controls=1)
+# https://en.wikipedia.org/wiki/Optimal_control
+ocp = mp.OCP(n_states=1, n_controls=1)
 
-
-def dynamics0(x, u, t):
-    return [x[1], u[0] - 1.5]
-
-
-ocp.dynamics[0] = dynamics0
+p = 1  # Price
 
 
-def running_cost0(x, u, t):
-
-    return u[0]
-
-
-ocp.running_costs[0] = running_cost0
+def dynamics(x, u, t):
+    return [-u[0]]
 
 
-def terminal_constraints0(xf, tf, x0, t0):
+def running_cost(x, u, t):
+    return u[0] * u[0] / x[0] - p * u[0]
 
-    return [xf[0], xf[1]]
 
+ocp.dynamics[0] = dynamics
+ocp.running_costs[0] = running_cost
 
-ocp.terminal_constraints[0] = terminal_constraints0
-
-ocp.tf0[0] = 4.0
-ocp.x00[0] = [10.0, -2.0]
-ocp.lbx[0] = [-20.0, -20.0]
-ocp.ubx[0] = [20.0, 20.0]
-ocp.lbu[0] = 0
-ocp.ubu[0] = 3
-ocp.lbtf[0], ocp.ubtf[0] = 3, 5
+ocp.x00[0] = [1.0]
+ocp.lbx[0] = 0
+ocp.ubx[0] = 1.0
+ocp.lbtf[0] = 1.0
+ocp.ubtf[0] = 1.0
 
 ocp.validate()
+mineopt = mp.mpopt(ocp, 1, 30)
 
 if __name__ == "__main__":
-    mpo, post = mp.solve_ph_adaptive_grid(ocp, max_iter=9)
+    mpo = mp.mpopt(ocp, 1, 30)
+    sol = mpo.solve()
+    post = mpo.process_results(sol, plot=True)
+    mp.plt.title(
+        f"non-adaptive solution segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
+    )
+
     mp.plt.show()

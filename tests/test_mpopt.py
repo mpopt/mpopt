@@ -1241,7 +1241,7 @@ def test_mpopt_get_states_residuals(moon_lander_mpo):
     sol = mpo.solve()
     post = mpo.process_results(sol, plot=False)
     # x, u, t, _ = post.get_data(interpolate=True)
-    ti, residual = mpo.get_states_residuals(
+    _, _, ti, residual = mpo.get_states_residuals(
         sol, grid_type="spectral", residual_type=None
     )
     for res_seg in residual[0]:
@@ -1249,13 +1249,15 @@ def test_mpopt_get_states_residuals(moon_lander_mpo):
             assert abs(np.array(res_seg)).max() < 1e-1
 
     # fixed
-    ti, residual = mpo.get_states_residuals(sol, grid_type="fixed", residual_type=None)
+    _, _, ti, residual = mpo.get_states_residuals(
+        sol, grid_type="fixed", residual_type=None
+    )
     for res_seg in residual[0]:
         if res_seg is not None:
             assert abs(np.array(res_seg)).max() < 1e-1
 
     # mid-points
-    ti, residual = mpo.get_states_residuals(
+    _, _, ti, residual = mpo.get_states_residuals(
         sol, grid_type="mid-points", residual_type=None
     )
     for res_seg in residual[0]:

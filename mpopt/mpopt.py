@@ -3238,7 +3238,7 @@ class mpopt_adaptive(mpopt):
 
         post_time = time.monotonic()
 
-        if self._MUTE_:
+        if not self._MUTE_:
             print(f"\n Post processed in {round((post_time - start_time)*1e3, 3)} ms")
             print(
                 f" \t Solution retrieval            : {round((traj_time - start_time)*1e3, 3)} ms"
