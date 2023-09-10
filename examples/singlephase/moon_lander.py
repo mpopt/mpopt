@@ -65,34 +65,36 @@ ocp.validate()
 moon_lander = mp.mpopt(ocp, 5, 4)
 
 if __name__ == "__main__":
-    mpo = mp.mpopt(ocp, 5, 4)
+    scheme = "LGR"
+    mpo = mp.mpopt(ocp, 10, 5, scheme=scheme)
     sol = mpo.solve()
     post = mpo.process_results(sol, plot=True)
     mp.plt.title(
         f"non-adaptive solution segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
     )
+    mp.plt.savefig("docs/plots/ml_mpopt.png")
 
-    mpo = mp.mpopt_h_adaptive(ocp, 20, 4)
+    mpo = mp.mpopt_h_adaptive(ocp, 10, 5, scheme=scheme)
     sol = mpo.solve(
-        max_iter=2, mpopt_options={"method": "residual", "sub_method": "merge_split"}
+        max_iter=10, mpopt_options={"method": "residual", "sub_method": "merge_split"}
     )
     post = mpo.process_results(sol)
     mp.plt.title(
         f"Adaptive solution: merge_split : segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
     )
-    # mp.plt.savefig("docs/plots/ml_h_ad_merge_split.png")
+    mp.plt.savefig("docs/plots/ml_h_ad_merge_split.png")
 
-    mpo = mp.mpopt_h_adaptive(ocp, 10, 4)
+    mpo = mp.mpopt_h_adaptive(ocp, 10, 5, scheme=scheme)
     sol = mpo.solve(
-        max_iter=2, mpopt_options={"method": "residual", "sub_method": "equal_area"}
+        max_iter=10, mpopt_options={"method": "residual", "sub_method": "equal_area"}
     )
     post = mpo.process_results(sol, plot=True)
     mp.plt.title(
         f"Adaptive solution: equal_residual : segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
     )
-    # mp.plt.savefig("docs/plots/ml_h_ad_eq_res.png")
+    mp.plt.savefig("docs/plots/ml_h_ad_eq_res.png")
 
-    mpo = mp.mpopt_h_adaptive(ocp, 5, 4)
+    mpo = mp.mpopt_h_adaptive(ocp, 10, 5, scheme=scheme)
     sol = mpo.solve(
         max_iter=10, mpopt_options={"method": "control_slope", "sub_method": ""}
     )
@@ -100,9 +102,9 @@ if __name__ == "__main__":
     mp.plt.title(
         f"Adaptive solution: Control slope : segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
     )
-    # mp.plt.savefig("docs/plots/ml_h_ad_c_slope.png")
+    mp.plt.savefig("docs/plots/ml_h_ad_c_slope.png")
 
-    mpo = mp.mpopt_adaptive(ocp, 3, 2)
+    mpo = mp.mpopt_adaptive(ocp, 10, 5, scheme=scheme)
     mpo.lbh[0] = 1e-6
     mpo.mid_residuals = True
     sol = mpo.solve()
@@ -110,6 +112,6 @@ if __name__ == "__main__":
     mp.plt.title(
         f"Adaptive solution: Direct opt. : segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
     )
-    # mp.plt.savefig("docs/plots/ml_ad.png")
+    mp.plt.savefig("docs/plots/ml_ad.png")
 
     mp.plt.show()

@@ -66,7 +66,7 @@ vdp = mp.mpopt(ocp, seg, p)
 if __name__ == "__main__":
     mp.post_process._INTERPOLATION_NODES_PER_SEG = 200
 
-    seg, p = 5, 4
+    seg, p = 5, 9
     mpo_lgr, lgr = mp.solve(ocp, seg, p, "LGR", plot=False)
     mpo_lgl, lgl = mp.solve(ocp, seg, p, "LGL", plot=False)
     mpo_cgl, cgl = mp.solve(ocp, seg, p, "CGL", plot=False)

@@ -55,7 +55,7 @@ ocp.validate()
 
 if __name__ == "__main__":
     mp.CollocationRoots._TAU_MIN = -1
-    mpo = mp.mpopt(ocp, 2, 10)
+    mpo = mp.mpopt(ocp, 10, 3)
     sol = mpo.solve()
     post = mpo.process_results(sol, plot=True)
     mp.plt.title(
