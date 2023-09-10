@@ -743,7 +743,9 @@ class mpopt:
             default_options = {
                 "ipopt.max_iter": 2000,
                 "ipopt.acceptable_tol": 1e-4,
-                "ipopt.print_level": 3,
+                "ipopt.print_level": 0,
+                "ipopt.sb": "yes",
+                "print_time": 0,
             }
         else:
             default_options = dict()
@@ -782,6 +784,9 @@ class mpopt:
             :solution: Solution as reported by the given nlp_solver object
 
         """
+        if not self._MUTE_:
+            print(f"\n *********** MPOPT Summary ********** \n")
+
         start_time = time.monotonic()
         if (not self._nlpsolver_initialized) or (reinitialize_nlp):
             self.create_solver(solver=solver, options=nlp_solver_options)
@@ -801,7 +806,6 @@ class mpopt:
         end_time = time.monotonic()
 
         if not self._MUTE_:
-            print(f"\n *********** MPOPT Summary ********** \n")
             print(" Optimal cost (J): ", solution["f"], "\n")
             print(f" Solved in {round((end_time - start_time)*1e3, 3)} ms")
 
@@ -811,6 +815,7 @@ class mpopt:
             print(
                 f" \t NLP solution time       : {round((end_time - end_time_ocp)*1e3, 3)} ms"
             )
+            # print(f"\n *********** End ********** \n")
 
         return solution
 
@@ -2308,6 +2313,10 @@ class mpopt_h_adaptive(mpopt):
             :solution: Solution as reported by the given nlp_solver object
 
         """
+        if not self._MUTE_:
+            print(f"\n *********** MPOPT H-Adaptive Summary ********** \n")
+
+        start_time = time.monotonic()
         if (not self._nlpsolver_initialized) or (reinitialize_nlp):
             if "ipopt.print_level" not in nlp_solver_options:
                 nlp_solver_options["ipopt.print_level"] = 0
@@ -2319,11 +2328,13 @@ class mpopt_h_adaptive(mpopt):
 
         self.iter_count, self.iter_info = 0, dict()
         sw_old = []
+        new_nlp_sw_params, max_error = self.get_segment_width_parameters(
+            initial_solution, options=mpopt_options
+        )
         for iter in range(max_iter):
+            self._nlp_sw_params = new_nlp_sw_params
             # By default, these paramers are of equal segment width
-            self._nlp_sw_params, max_error = self.get_segment_width_parameters(
-                initial_solution, options=mpopt_options
-            )
+
             if self.iter_count > 0:
                 self.iter_info[self.iter_count - 1] = max_error
 
@@ -2343,7 +2354,8 @@ class mpopt_h_adaptive(mpopt):
             if (iter == 0) and (initial_solution is None):
                 max_error = None
 
-            print(f"Iteration : {iter+1}, {max_error}")
+            if max_error is not None:
+                print(f"Iteration : {iter}, {max_error}")
             solver_inputs = self.get_solver_warm_start_input_parameters(
                 initial_solution
             )
@@ -2354,12 +2366,23 @@ class mpopt_h_adaptive(mpopt):
             # Store the solution in intial_solution
             initial_solution = solution
             sw_old = copy.deepcopy(self._nlp_sw_params)
+
+            new_nlp_sw_params, max_error = self.get_segment_width_parameters(
+                initial_solution, options=mpopt_options
+            )
+
             self.iter_count += 1
 
             if iter == max_iter - 1:
                 print("Stopping the iterations: Iteration limit exceeded")
 
-        print(f"Adaptive Iter., max_residual : {self.iter_count}, {max_error}")
+        end_time = time.monotonic()
+        print(f"H-Adaptive Iter., max_residual : {self.iter_count}, {max_error}")
+
+        if not self._MUTE_:
+            print(" Optimal cost (J): ", solution["f"], "\n")
+            print(f" Solved in {round((end_time - start_time)*1e3, 3)} ms\n")
+            # print(f"\n *********** H-adaptive End ********** \n")
 
         return solution
 
@@ -2782,7 +2805,7 @@ class mpopt_adaptive(mpopt):
         >>> post = opt.process_results(solution, plot=True)
     """
 
-    _SEG_WIDTH_MIN = 1e-2
+    _SEG_WIDTH_MIN = 1e-4
     _SEG_WIDTH_MAX = 1.0
     _TOL_RESIDUAL = 1e-3
 
@@ -3083,7 +3106,9 @@ class mpopt_adaptive(mpopt):
             {
                 "ipopt.max_iter": 2000,
                 "ipopt.acceptable_tol": 1e-4,
-                "ipopt.print_level": 2,
+                "ipopt.print_level": 0,
+                "ipopt.sb": "yes",
+                "print_time": 0,
             }
             if solver == "ipopt"
             else dict()
