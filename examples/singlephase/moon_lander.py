@@ -65,51 +65,61 @@ ocp.validate()
 moon_lander = mp.mpopt(ocp, 5, 4)
 
 if __name__ == "__main__":
-    mpo = mp.mpopt(ocp, 5, 4)
-    sol = mpo.solve()
-    post = mpo.process_results(sol, plot=True)
-    mp.plt.title(
-        f"non-adaptive solution segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
-    )
+    # mpo = mp.mpopt(ocp, 5, 4)
+    # sol = mpo.solve()
+    # post = mpo.process_results(sol, plot=True)
+    # mp.plt.title(
+    #     f"non-adaptive solution segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
+    # )
 
-    mpo = mp.mpopt_h_adaptive(ocp, 20, 4)
-    sol = mpo.solve(
-        max_iter=2, mpopt_options={"method": "residual", "sub_method": "merge_split"}
-    )
-    post = mpo.process_results(sol)
-    mp.plt.title(
-        f"Adaptive solution: merge_split : segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
-    )
+    resids = dict()
+    fig = mp.plt.figure()
+    for seg in range(5, 15):
+        mp.mpopt_h_adaptive._TOL_RESIDUAL = 1e-4
+        mp.mpopt_h_adaptive._TOL_SEG_WIDTH_CHANGE = 0.01
+        mpo = mp.mpopt_h_adaptive(ocp, seg, 3)
+        sol = mpo.solve(
+            max_iter=20,
+            mpopt_options={"method": "control_slope", "sub_method": "equal_area"},
+        )
+        # post = mpo.process_results(sol)
+        resids[seg] = mpo.iter_info
+        mp.plt.plot(list(mpo.iter_info.keys()), list(mpo.iter_info.values()), label=seg)
+
+    mp.plt.legend()
+    # mp.plt.title(
+    #     f"Adaptive solution: merge_split : segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
+    # )
     # mp.plt.savefig("docs/plots/ml_h_ad_merge_split.png")
 
-    mpo = mp.mpopt_h_adaptive(ocp, 10, 4)
-    sol = mpo.solve(
-        max_iter=2, mpopt_options={"method": "residual", "sub_method": "equal_area"}
-    )
-    post = mpo.process_results(sol, plot=True)
-    mp.plt.title(
-        f"Adaptive solution: equal_residual : segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
-    )
-    # mp.plt.savefig("docs/plots/ml_h_ad_eq_res.png")
-
-    mpo = mp.mpopt_h_adaptive(ocp, 5, 4)
-    sol = mpo.solve(
-        max_iter=10, mpopt_options={"method": "control_slope", "sub_method": ""}
-    )
-    post = mpo.process_results(sol, plot=True)
-    mp.plt.title(
-        f"Adaptive solution: Control slope : segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
-    )
-    # mp.plt.savefig("docs/plots/ml_h_ad_c_slope.png")
-
-    mpo = mp.mpopt_adaptive(ocp, 3, 2)
-    mpo.lbh[0] = 1e-6
-    mpo.mid_residuals = True
-    sol = mpo.solve()
-    post = mpo.process_results(sol, plot=True)
-    mp.plt.title(
-        f"Adaptive solution: Direct opt. : segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
-    )
-    # mp.plt.savefig("docs/plots/ml_ad.png")
+    # mpo = mp.mpopt_h_adaptive(ocp, 10, 4)
+    # sol = mpo.solve(
+    #     max_iter=2, mpopt_options={"method": "residual", "sub_method": "equal_area"}
+    # )
+    # post = mpo.process_results(sol, plot=True)
+    # mp.plt.title(
+    #     f"Adaptive solution: equal_residual : segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
+    # )
+    # # mp.plt.savefig("docs/plots/ml_h_ad_eq_res.png")
+    #
+    # mpo = mp.mpopt_h_adaptive(ocp, 5, 4)
+    # sol = mpo.solve(
+    #     max_iter=10, mpopt_options={"method": "control_slope", "sub_method": ""}
+    # )
+    # post = mpo.process_results(sol, plot=True)
+    # mp.plt.title(
+    #     f"Adaptive solution: Control slope : segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
+    # )
+    # # mp.plt.savefig("docs/plots/ml_h_ad_c_slope.png")
+    #
+    # mpo = mp.mpopt_adaptive(ocp, 3, 2)
+    # mpo.lbh[0] = 1e-6
+    # mpo.mid_residuals = True
+    # sol = mpo.solve()
+    # post = mpo.process_results(sol, plot=True)
+    # mp.plt.title(
+    #     f"Adaptive solution: Direct opt. : segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
+    # )
+    # # mp.plt.savefig("docs/plots/ml_ad.png")
 
     mp.plt.show()

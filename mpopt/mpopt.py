@@ -2327,6 +2327,13 @@ class mpopt_h_adaptive(mpopt):
             if self.iter_count > 0:
                 self.iter_info[self.iter_count - 1] = max_error
 
+                if self.iter_count > 4:
+                    if abs(
+                        max_error - np.mean(list(self.iter_info.values())[-3:])
+                    ) < 0.05 * abs(max_error):
+                        print("Stopping the iterations: Change in max error is < 5%")
+                        break
+
             if iter > 0:
                 sw_percentage_change = np.array(
                     [
