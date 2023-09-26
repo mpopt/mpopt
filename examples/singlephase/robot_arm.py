@@ -90,23 +90,63 @@ ocp.validate()
 robot_arm = mp.mpopt(ocp, 20, 4, "LGR")
 
 if __name__ == "__main__":
-    mpo = mp.mpopt(ocp, 20, 4, "LGR")
-    solution = mpo.solve()
-
-    post = mpo.process_results(solution)
+    # mpo = mp.mpopt(ocp, 20, 4, "LGR")
+    # solution = mpo.solve()
+    #
+    # post = mpo.process_results(solution)
 
     # ocp.midu[0] = 1
-    mpo = mp.mpopt_h_adaptive(ocp, 20, 4, "LGR")
-    # options = {"method": "residual", "sub_method": "merge_split"}
-    options = {"method": "residual", "sub_method": "equal_area"}
-    # options = {"method": "control_slope", "sub_method": ""}
-    mpo.tol_residual[0] = 1e-4
-    solution = mpo.solve(max_iter=2, mpopt_options=options)
-    # solution = mpo.solve()  # , mpopt_options={"method": "control_slope"})
-    post = mpo.process_results(solution)
+    resids = dict()
+    fig = mp.plt.figure()
+    mp.mpopt._GRID_TYPE = "fixed"
+    mp.mpopt_h_adaptive._TOL_RESIDUAL = 1e-3
+    mp.mpopt_h_adaptive._TOL_SEG_WIDTH_CHANGE = 0.01
 
-    mpo = mp.mpopt_adaptive(ocp, 20, 3, "LGR")
+    tags = ["r-", "g.-", "ko-", "y*-", "c+-"] * 15
+    for deg in range(20, 21):
+        mpo = mp.mpopt_h_adaptive(ocp, deg, 6)
+        sol = mpo.solve(
+            max_iter=20,
+            mpopt_options={"method": "control_slope", "sub_method": "equal_area"},
+        )
+        resids[deg] = mpo.iter_info
+        mp.plt.plot(
+            list(mpo.iter_info.keys()),
+            list(mpo.iter_info.values()),
+            tags[deg],
+            label=deg,
+        )
+
+    mp.plt.legend()
+    post = mpo.process_results(sol)
+    mp.plt.title(
+        f"H-Adaptive solution : segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
+    )
+    mp.plt.savefig("docs/plots/tps_h_ad_merge_split.png")
+
+    # mpo = mp.mpopt_h_adaptive(ocp, 20, 4, "LGR")
+    # options = {"method": "residual", "sub_method": "merge_split"}
+    # mpo.tol_residual[0] = 1e-4
+    # solution = mpo.solve(max_iter=2, mpopt_options=options)
+    # post = mpo.process_results(solution)
+    # mp.plt.title(
+    #     f"Adaptive solution: merge split : segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
+    # )
+    #
+    # mpo = mp.mpopt_h_adaptive(ocp, 20, 4, "LGR")
+    # options = {"method": "control_slope", "sub_method": ""}
+    # mpo.tol_residual[0] = 1e-4
+    # solution = mpo.solve(max_iter=2, mpopt_options=options)
+    # post = mpo.process_results(solution)
+    # mp.plt.title(
+    #     f"Adaptive solution: Control slope : segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
+    # )
+
+    # mpo = mp.mpopt_adaptive(ocp, 20, 3, "LGR")
     # mpo.mid_residuals = True
-    solution = mpo.solve()
-    post = mpo.process_results(solution)
+    # solution = mpo.solve()
+    # post = mpo.process_results(solution)
+    # mp.plt.title(
+    #     f"Adaptive solution: direct : segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
+    # )
     mp.plt.show()

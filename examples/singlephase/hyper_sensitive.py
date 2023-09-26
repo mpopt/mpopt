@@ -44,40 +44,40 @@ seg, p = 50, 3
 hysens = mp.mpopt(ocp, seg, p)
 
 if __name__ == "__main__":
-    seg, p = 50, 3
-    mpo = mp.mpopt(ocp, seg, p)
-    sol = mpo.solve()
-    post = mpo.process_results(sol)
-    mp.plt.title(
-        f"non-adaptive solution segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
-    )
-    #
-    # mpo = mp.mpopt_h_adaptive(ocp, seg, p)
-    # sol = mpo.solve(
-    #     max_iter=10, mpopt_options={"method": "residual", "sub_method": "merge_split"}
-    # )
-    # post = mpo.process_results(sol, plot=True)
+    seg, p = 5, 20
+    # mpo = mp.mpopt(ocp, seg, p)
+    # sol = mpo.solve()
+    # post = mpo.process_results(sol)
     # mp.plt.title(
-    #     f"Adaptive solution: merge_split : segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
-    # )
-    #
-    # mpo = mp.mpopt_h_adaptive(ocp, seg, p)
-    # sol = mpo.solve(
-    #     max_iter=10, mpopt_options={"method": "residual", "sub_method": "equal_area"}
-    # )
-    # post = mpo.process_results(sol, plot=True)
-    # mp.plt.title(
-    #     f"Adaptive solution: equal_residual : segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
+    #     f"non-adaptive solution segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
     # )
 
-    # mpo = mp.mpopt_h_adaptive(ocp, seg, p)
-    # sol = mpo.solve(
-    #     max_iter=10, mpopt_options={"method": "control_slope", "sub_method": ""}
-    # )
-    # post = mpo.process_results(sol, plot=True)
-    # mp.plt.title(
-    #     f"Adaptive solution: Control slope : segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
-    # )
+    mpo = mp.mpopt_h_adaptive(ocp, seg, p)
+    sol = mpo.solve(
+        max_iter=10, mpopt_options={"method": "residual", "sub_method": "merge_split"}
+    )
+    post = mpo.process_results(sol, plot=True)
+    mp.plt.title(
+        f"Adaptive solution: merge_split : segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
+    )
+
+    mpo = mp.mpopt_h_adaptive(ocp, seg, p)
+    sol = mpo.solve(
+        max_iter=10, mpopt_options={"method": "residual", "sub_method": "equal_area"}
+    )
+    post = mpo.process_results(sol, plot=True)
+    mp.plt.title(
+        f"Adaptive solution: equal_residual : segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
+    )
+
+    mpo = mp.mpopt_h_adaptive(ocp, seg, p)
+    sol = mpo.solve(
+        max_iter=10, mpopt_options={"method": "control_slope", "sub_method": ""}
+    )
+    post = mpo.process_results(sol, plot=True)
+    mp.plt.title(
+        f"Adaptive solution: Control slope : segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
+    )
 
     mpo = mp.mpopt_adaptive(ocp, 3, 30)
     mpo._SEG_WIDTH_MIN = 1e-6
