@@ -296,23 +296,35 @@ ocp.dynamics = get_dynamics(0)
 
 if __name__ == "__main__":
     mpo = mp.mpopt(ocp, 1, 11)
-    sol = mpo.solve()
+    mp.mpopt_h_adaptive._TOL_RESIDUAL = 1e-8
+    mp.mpopt_h_adaptive._TOL_SEG_WIDTH_CHANGE = 0.01
+
+    sol = mpo.solve(
+        max_iter=20,
+        mpopt_options={"method": "residual", "sub_method": "equal_area"},
+    )
 
     # Solve with drag enabled and initial guess
     ocp.dynamics = get_dynamics(1)
     ocp.validate()
-
+    # mpo = mp.mpopt_h_adaptive(ocp, 5, 6)
     mpo._ocp = ocp
     sol = mpo.solve(
-        sol, reinitialize_nlp=True, nlp_solver_options={"ipopt.acceptable_tol": 1e-6}
+        sol,
+        reinitialize_nlp=True,
+        nlp_solver_options={"ipopt.acceptable_tol": 1e-6},
+        max_iter=20,
+        mpopt_options={"method": "control_slope", "sub_method": "equal_area"},
     )
     print("Final mass : ", round(-sol["f"].full()[0, 0] * m0, 4))
 
-    mp.post_process._INTERPOLATION_NODES_PER_SEG = 200
-    # Post processing
-    post = mpo.process_results(sol, plot=False, scaling=False)
+    post = mpo.process_results(sol, plot=True, scaling=False)
 
-    # ************** Plot height and velocity ************************
+    # mp.post_process._INTERPOLATION_NODES_PER_SEG = 200
+    # # Post processing
+    # post = mpo.process_results(sol, plot=False, scaling=False)
+    #
+    # # ************** Plot height and velocity ************************
     x, u, t, _ = post.get_data(interpolate=True)
     print("Final time : ", t[-1])
     figu, axsu = post.plot_u()

@@ -65,15 +65,17 @@ ocp.validate()
 moon_lander = mp.mpopt(ocp, 5, 4)
 
 if __name__ == "__main__":
-    # mp.mpopt._GRID_TYPE = "spectral"
-    # mpo = mp.mpopt(ocp, 1, 20)
-    # sol = mpo.solve()
-    # post = mpo.process_results(sol, plot=True)
-    # mp.plt.title(
-    #     f"non-adaptive solution segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
-    # )
+    mp.mpopt._GRID_TYPE = "spectral"
+    mpo = mp.mpopt(ocp, 20, 3)
+    sol = mpo.solve()
+    post = mpo.process_results(sol, plot=True)
+    mp.plt.title(
+        f"non-adaptive solution segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
+    )
 
-    # print(sol["lam_g"][12:])
+    fig = mp.plt.figure()
+    mp.plt.plot(sol["lam_g"], "g.")
+    print(sol["lam_g"])
 
     resids = dict()
     fig = mp.plt.figure()

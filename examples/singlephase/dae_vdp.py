@@ -66,7 +66,7 @@ vdp = mp.mpopt(ocp, seg, p)
 if __name__ == "__main__":
     mp.post_process._INTERPOLATION_NODES_PER_SEG = 200
 
-    seg, p = 5, 6
+    seg, p = 5, 3
     # mpo_lgr, lgr = mp.solve(ocp, seg, p, "LGR", plot=False)
     # mpo_lgl, lgl = mp.solve(ocp, seg, p, "LGL", plot=False)
     # mpo_cgl, cgl = mp.solve(ocp, seg, p, "CGL", plot=False)
@@ -85,7 +85,7 @@ if __name__ == "__main__":
         mpo = mp.mpopt_h_adaptive(ocp, seg, p)
         solh = mpo.solve(
             max_iter=20,
-            mpopt_options={"method": "residual", "sub_method": "merge_split"},
+            mpopt_options={"method": "control_slope", "sub_method": "equal_area"},
         )
 
         resids[seg] = mpo.iter_info

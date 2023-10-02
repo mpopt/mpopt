@@ -1919,41 +1919,67 @@ class post_process:
         if residuals:
             if self.residuals is not None:
                 if ("t_x" in self.residuals) and ("t_dx" in self.residuals):
+                    y_data = [
+                        r_seg
+                        for r_p in self.residuals["t_x"][1]
+                        for r_seg in r_p
+                        if r_seg is not None
+                    ]
+
+                    x_data = np.hstack(np.concatenate(self.residuals["t_x"][0]))
+                    y_data = np.concatenate(y_data)
+
                     ax2 = plt.subplot(2, 2, 2)
-                    fig, axs = self.plot_residuals(
-                        self.residuals["t_x"][0],
-                        self.residuals["t_x"][1],
-                        name="state error",
-                        fig=fig,
-                        axs=ax2,
-                    )
+                    dims = y_data.shape[1]
+                    self.plot_curve(ax2, y_data, x_data, "x", "States error", tics=tics)
+
                     ax3 = plt.subplot(2, 2, 4)
-                    fig, axs = self.plot_residuals(
-                        self.residuals["t_dx"][0],
-                        self.residuals["t_dx"][1],
-                        name="dynamics error",
-                        fig=fig,
-                        axs=ax3,
+                    y_data = [
+                        r_seg
+                        for r_p in self.residuals["t_dx"][1]
+                        for r_seg in r_p
+                        if r_seg is not None
+                    ]
+
+                    x_data = np.hstack(np.concatenate(self.residuals["t_dx"][0]))
+                    y_data = np.concatenate(y_data)
+
+                    self.plot_curve(
+                        ax3, y_data, x_data, "dx", "Dynamics error", tics=tics
                     )
+
                     axs = [ax0, ax1, ax2, ax3]
                 else:
                     ax2 = plt.subplot(1, 2, 2)
                     if "t_x" in self.residuals:
-                        fig, axs = self.plot_residuals(
-                            self.residuals["t_x"][0],
-                            self.residuals["t_x"][1],
-                            name="state error",
-                            fig=fig,
-                            axs=ax2,
+                        y_data = [
+                            r_seg
+                            for r_p in self.residuals["t_x"][1]
+                            for r_seg in r_p
+                            if r_seg is not None
+                        ]
+
+                        x_data = np.hstack(np.concatenate(self.residuals["t_x"][0]))
+                        y_data = np.concatenate(y_data)
+
+                        self.plot_curve(
+                            ax2, y_data, x_data, "x", "States error", tics=tics
                         )
                     else:
-                        fig, axs = self.plot_residuals(
-                            self.residuals["t_dx"][0],
-                            self.residuals["t_dx"][1],
-                            name="dynamics error",
-                            fig=fig,
-                            axs=ax2,
+                        y_data = [
+                            np.concatenate(
+                                [r_seg for r_seg in r_p if r_seg is not None]
+                            )
+                            for r_p in self.residuals["t_dx"][1]
+                        ]
+
+                        x_data = np.hstack(np.concatenate(self.residuals["t_dx"][0]))
+                        y_data = np.concatenate(y_data)
+
+                        self.plot_curve(
+                            ax2, y_data, x_data, "dx", "Dynamics error", tics=tics
                         )
+                    ax2.set(xlabel="Time, s")
                     axs = [ax0, ax1, ax2]
 
         return fig, axs
@@ -2353,6 +2379,7 @@ class mpopt_h_adaptive(mpopt):
         new_nlp_sw_params, max_error = self.get_segment_width_parameters(
             initial_solution, options=mpopt_options
         )
+        solved = False
         if max_error is not None:
             if max_error < min(self.tol_residual):
                 self.iter_info[self.iter_count] = max_error
@@ -2361,7 +2388,9 @@ class mpopt_h_adaptive(mpopt):
                     max_error,
                 )
                 solution = initial_solution
-        else:
+                solved = True
+
+        if not solved:
             for iter in range(max_iter):
                 self._nlp_sw_params = new_nlp_sw_params
                 # By default, these paramers are of equal segment width

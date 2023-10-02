@@ -103,12 +103,14 @@ if __name__ == "__main__":
     mp.mpopt_h_adaptive._TOL_SEG_WIDTH_CHANGE = 0.01
 
     tags = ["r-", "g.-", "ko-", "y*-", "c+-"] * 15
-    for deg in range(20, 21):
+    for deg in range(5, 6):
         mpo = mp.mpopt_h_adaptive(ocp, deg, 6)
+        mpo.plot_residual_evolution = True
         sol = mpo.solve(
-            max_iter=20,
-            mpopt_options={"method": "control_slope", "sub_method": "equal_area"},
+            max_iter=5,
+            mpopt_options={"method": "residual", "sub_method": "equal_area"},
         )
+
         resids[deg] = mpo.iter_info
         mp.plt.plot(
             list(mpo.iter_info.keys()),
@@ -116,8 +118,8 @@ if __name__ == "__main__":
             tags[deg],
             label=deg,
         )
-
     mp.plt.legend()
+
     post = mpo.process_results(sol)
     mp.plt.title(
         f"H-Adaptive solution : segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
