@@ -65,23 +65,16 @@ ocp.validate()
 moon_lander = mp.mpopt(ocp, 5, 4)
 
 if __name__ == "__main__":
-    mp.mpopt._GRID_TYPE = "spectral"
     mpo = mp.mpopt(ocp, 20, 3)
     sol = mpo.solve()
     post = mpo.process_results(sol, plot=True)
-    mp.plt.title(
-        f"non-adaptive solution segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
-    )
-
-    fig = mp.plt.figure()
-    mp.plt.plot(sol["lam_g"], "g.")
-    print(sol["lam_g"])
+    mp.plt.title(f"non-adaptive solution")
 
     resids = dict()
     fig = mp.plt.figure()
     mp.mpopt._GRID_TYPE = "fixed"
     tags = ["r-", "g.-", "ko-", "y*-", "c+-"] * 15
-    for deg in range(5, 20):
+    for deg in range(5, 10):
         mp.mpopt_h_adaptive._TOL_RESIDUAL = 1e-4
         mp.mpopt_h_adaptive._TOL_SEG_WIDTH_CHANGE = 0.01
         mpo = mp.mpopt_h_adaptive(ocp, deg, 3)
@@ -98,11 +91,12 @@ if __name__ == "__main__":
         )
 
     mp.plt.legend()
+    mp.plt.xlabel("Adaptive Iteration No.")
+    mp.plt.ylabel("Maximum residual")
+    mp.plt.title("Error variation w.r.t initialized number of segments")
     post = mpo.process_results(sol)
-    mp.plt.title(
-        f"Adaptive solution: merge_split : segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
-    )
-    mp.plt.savefig("docs/plots/ml_h_ad_merge_split.png")
+    mp.plt.title(f"Adaptive solution")
+    # mp.plt.savefig("docs/plots/ml_h_ad_merge_split.png")
 
     # mpo = mp.mpopt_h_adaptive(ocp, 10, 4)
     # sol = mpo.solve(

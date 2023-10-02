@@ -32,5 +32,5 @@ clean:
 		find -iname "*.pyc" -delete
 
 
-run: examples/moon_lander.py
-	. venv/bin/activate; python examples/moon_lander.py
+run: examples/singlephase/moon_lander.py
+	. venv/bin/activate; python examples/singlephase/moon_lander.py
