@@ -17,20 +17,41 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
-install: requirements.txt
-	test -d venv || virtualenv --python=python3.6 venv
-	. venv/bin/activate; pip install -Ur requirements.txt
-	touch venv/bin/activate
 
+# Colors for echos
+ccend = $(shell tput sgr0)
+ccbold = $(shell tput bold)
+ccgreen = $(shell tput setaf 2)
+ccso = $(shell tput smso)
+
+VIRTUAL_ENV=env
+PYTHON=${VIRTUAL_ENV}/bin/python3
+
+venv: $(VIRTUAL_ENV) ## >> install virtualenv and setup the virtual environment
+
+$(VIRTUAL_ENV):
+	@echo "$(ccso)--> Install and setup virtualenv $(ccend)"
+	python3 -m pip install --upgrade pip
+	python3 -m pip install virtualenv
+	virtualenv --python python3 $(VIRTUAL_ENV)
+
+build: ##@main >> build the virtual environment with an ipykernel for jupyter and install requirements
+		@echo ""
+		@echo "$(ccso)--> Build $(ccend)"
+		$(MAKE) clean
+		$(MAKE) install
+
+install: venv requirements.txt ##@main >> update requirements.txt inside the virtual environment
+		@echo "$(ccso)--> Updating packages $(ccend)"
+		$(PYTHON) -m pip install -r requirements.txt
 
 test: venv
-	. venv/bin/activate; py.test tests
+	. $(VIRTUAL_ENV)/bin/activate; py.test -v tests
 
-
-clean:
-		rm -rf venv
-		find -iname "*.pyc" -delete
-
+clean: ## >> remove all environment and build files
+		@echo ""
+		@echo "$(ccso)--> Removing virtual environment $(ccend)"
+		rm -rf $(VIRTUAL_ENV)
 
 run: examples/singlephase/moon_lander.py
-	. venv/bin/activate; python examples/singlephase/moon_lander.py
+	. $(VIRTUAL_ENV)/bin/activate; python3 examples/singlephase/moon_lander.py
