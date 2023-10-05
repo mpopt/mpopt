@@ -54,8 +54,9 @@ pip install mpopt
 ```bash
 git clone https://github.com/mpopt/mpopt.git --branch master
 cd mpopt
-make install
-make test
+make build
+make run
+source env/bin/activate
 ```
 
 A sample code to solve moon-lander OCP (2D) under 10 lines

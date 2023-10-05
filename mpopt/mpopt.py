@@ -25,6 +25,7 @@ import casadi as ca  # type: ignore
 import matplotlib.pyplot as plt
 import copy
 import math
+import time
 
 
 class mpopt:
@@ -48,8 +49,9 @@ class mpopt:
         >>> post = opt.process_results(solution, plot=True)
     """
 
-    _GRID_TYPE = "spectral"  # mid-points, spectral
+    _GRID_TYPE = "fixed"  # mid-points, spectral, fixed
     _MAX_GRID_POINTS = 15  # Per phase
+    _MUTE_ = False
 
     def __init__(
         self: "mpopt",
@@ -741,7 +743,9 @@ class mpopt:
             default_options = {
                 "ipopt.max_iter": 2000,
                 "ipopt.acceptable_tol": 1e-4,
-                "ipopt.print_level": 3,
+                "ipopt.print_level": 0,
+                "ipopt.sb": "yes",
+                "print_time": 0,
             }
         else:
             default_options = dict()
@@ -780,6 +784,10 @@ class mpopt:
             :solution: Solution as reported by the given nlp_solver object
 
         """
+        if not self._MUTE_:
+            print(f"\n *********** MPOPT Summary ********** \n")
+
+        start_time = time.monotonic()
         if (not self._nlpsolver_initialized) or (reinitialize_nlp):
             self.create_solver(solver=solver, options=nlp_solver_options)
 
@@ -791,8 +799,23 @@ class mpopt:
 
         solver_inputs = self.get_solver_warm_start_input_parameters(initial_solution)
         solver_inputs["p"] = self._nlp_sw_params
+        end_time_ocp = time.monotonic()
 
         solution = self.nlp_solver(**solver_inputs, **self.nlp_bounds)
+
+        end_time = time.monotonic()
+
+        if not self._MUTE_:
+            print(" Optimal cost (J): ", solution["f"], "\n")
+            print(f" Solved in {round((end_time - start_time)*1e3, 3)} ms")
+
+            print(
+                f" \t OCP transcription time  : {round((end_time_ocp - start_time)*1e3, 3)} ms"
+            )
+            print(
+                f" \t NLP solution time       : {round((end_time - end_time_ocp)*1e3, 3)} ms"
+            )
+            # print(f"\n *********** End ********** \n")
 
         return solution
 
@@ -858,7 +881,14 @@ class mpopt:
 
         return trajectories
 
-    def process_results(self, solution, plot: bool = True, scaling: bool = False):
+    def process_results(
+        self,
+        solution,
+        plot: bool = True,
+        scaling: bool = False,
+        residual_x: bool = False,
+        residual_dx: bool = True,
+    ):
         """Post process the solution of the NLP
 
         args:
@@ -869,14 +899,32 @@ class mpopt:
             :scaling: bool
                 True - Plot the scaled variables
                 False - Plot unscaled variables meaning, original solution to the problem
+            :residuals: bool
+                To plot norma of the residual in the dynamics evaluated at points different from collocation nodes
 
         returns:
             :post: Object of post_process class (Initialized)
 
         """
+        start_time = time.monotonic()
         trajectories = [
             self.init_trajectories(phase) for phase in range(self._ocp.n_phases)
         ]
+        traj_time = time.monotonic()
+
+        resid_value = {}
+        if residual_x:
+            x_int, u_int, ti, res_x = self.get_states_residuals(solution)
+            resid_value["t_x"] = [ti, res_x]
+            rx_time = time.monotonic()
+        if residual_dx:
+            tdx, res_dx = self.get_dynamics_residuals(solution)
+            resid_value["t_dx"] = [tdx, res_dx]
+            rdx_time = time.monotonic()
+        else:
+            resid_value = None
+
+        r_time = time.monotonic()
 
         options = {
             "nx": self._ocp.nx,
@@ -897,13 +945,38 @@ class mpopt:
             "tau1": self.tau1,
             "interpolation_depth": 3,
             "seg_widths": self._nlp_sw_params,
+            "residuals": resid_value,
         }
+
         post = post_process(solution, trajectories, options)
 
         if plot:
             for phases in self._ocp.phases_to_plot:
-                post.plot_phases(phases)
-            # plt.show()
+                residuals = residual_x or residual_dx
+                post.plot_phases(phases, residuals=residuals)
+
+        post_time = time.monotonic()
+
+        if not self._MUTE_:
+            print(f"\n Post processed in {round((post_time - start_time)*1e3, 3)} ms")
+            print(
+                f" \t Solution retrieval            : {round((traj_time - start_time)*1e3, 3)} ms"
+            )
+            if residual_x:
+                print(
+                    f" \t Residual in states             : {round((rx_time - traj_time)*1e3, 3)} ms"
+                )
+                if residual_dx:
+                    print(
+                        f" \t Residual in dynamics          : {round((rdx_time - rx_time)*1e3, 3)} ms"
+                    )
+            elif residual_dx:
+                print(
+                    f" \t Residual in dynamics           : {round((rdx_time - traj_time)*1e3, 3)} ms"
+                )
+            print(
+                f" \t Process solution and plot      : {round((post_time - r_time)*1e3, 3)} ms"
+            )
 
         return post
 
@@ -937,7 +1010,7 @@ class mpopt:
         else:
             target_nodes = nodes
 
-        xi, ui, ti, a, Dxi, Dui, taus_grid = self.interpolate_single_phase(
+        xi, ui, ti, a, Dxi, Dui, taus_grid, t0, tf = self.interpolate_single_phase(
             solution, phase=phase, target_nodes=target_nodes, options={}
         )
         # print("taus", taus_grid)
@@ -1005,8 +1078,8 @@ class mpopt:
     def get_states_residuals(
         self,
         solution,
+        phases=None,
         nodes=None,
-        grid_type="spectral",
         residual_type=None,
         plot=False,
         fig=None,
@@ -1019,22 +1092,32 @@ class mpopt:
         args:
             :grid_type: target grid type (normalized between 0 and 1)
             :solution: solution of the NLP as reported by the solver
+            :phases: As a list with indices ex. [0,1]
             :nodes: grid where the residual is computed (between tau0, tau1) in a list (nodes[0] -> Nodes for phase0)
             :options: Options for the target grid
 
         returns:
             :residuals: residual vector for the dynamics at the given taus
         """
-        residuals, ti = [None] * self._ocp.n_phases, [None] * self._ocp.n_phases
-        for phase in range(self._ocp.n_phases):
+        x_int, u_int, residuals, ti = (
+            [None] * self._ocp.n_phases,
+            [None] * self._ocp.n_phases,
+            [None] * self._ocp.n_phases,
+            [None] * self._ocp.n_phases,
+        )
+        if phases == None:
+            phases = range(self._ocp.n_phases)
+        for phase in phases:
             if nodes is None:
-                target_nodes = self.get_residual_grid_taus(phase, grid_type=grid_type)
+                target_nodes = self.get_residual_grid_taus(
+                    phase, grid_type=self.grid_type[phase]
+                )
             else:
                 target_nodes = nodes[phase]
 
             (
-                x_phase,
-                u_phase,
+                x_int[phase],
+                u_int[phase],
                 ti[phase],
                 residuals[phase],
             ) = self.compute_states_from_solution_dynamics(
@@ -1045,7 +1128,7 @@ class mpopt:
             if residual_type == "relative":
                 # print(residuals[phase])  # = np.array(residuals[phase])
                 max_val = np.zeros(self._ocp.nx)
-                for seg, res_seg in enumerate(x_phase):
+                for seg, res_seg in enumerate(x_int[phase]):
                     if res_seg is not None:
                         seg_max = abs(np.array(res_seg)).max(axis=0)
                         for id, val in enumerate(max_val):
@@ -1064,7 +1147,7 @@ class mpopt:
                 ti, residuals, phases=range(self._ocp.n_phases), fig=fig, axs=axs
             )
 
-        return ti, residuals
+        return x_int, u_int, ti, residuals
 
     def get_residual_grid_taus(self, phase: int = 0, grid_type: str = None):
         """Select the non-collocation nodes in a given phase
@@ -1084,13 +1167,17 @@ class mpopt:
             grid_type = self.grid_type[phase]
         if grid_type == "fixed":
             # Equally spaced nodes per phase
-            target_nodes = np.linspace(self.tau0, self.tau1, self._MAX_GRID_POINTS + 2)
+            n_nodes = max(sum(self.poly_orders) + 2, self._MAX_GRID_POINTS + 2)
+
+            target_nodes = np.linspace(self.tau0, self.tau1, n_nodes)
             taus_on_original_grid = (
                 self.compute_interpolation_taus_corresponding_to_original_grid(
                     target_nodes,
                     self._nlp_sw_params[
                         self.n_segments * phase : self.n_segments * (phase + 1)
                     ],
+                    tau0=self.tau0,
+                    tau1=self.tau1,
                 )
             )
             taus_on_original_grid[0] = taus_on_original_grid[0][:-1]
@@ -1116,7 +1203,7 @@ class mpopt:
 
     @staticmethod
     def compute_interpolation_taus_corresponding_to_original_grid(
-        nodes_req, seg_widths
+        nodes_req, seg_widths, tau0=0, tau1=1
     ):
         """Compute the taus on original solution grid corresponding to the required interpolation nodes
 
@@ -1131,14 +1218,20 @@ class mpopt:
         assert abs(cumulative_sw[-1] - 1) < 1e-6
         n_segments = len(seg_widths)
 
+        # Scale nodes_req between 0 & 1
+        nodes_req_scaled = 0 + (1 - 0) / (tau1 - tau0) * (nodes_req - tau0)
+
         interp_taus = [None] * n_segments
         for i, seg in enumerate(seg_widths):
             # Starting node (0) won't be part of interpolation
-            interp_taus[i] = nodes_req[nodes_req > cumulative_sw[i]]
+            interp_taus[i] = nodes_req_scaled[nodes_req_scaled > cumulative_sw[i]]
             # Terminal state is included
             interp_taus[i] = interp_taus[i][interp_taus[i] <= cumulative_sw[i + 1]]
             # Normalize the taus to 1 by dividing with segment width
             interp_taus[i] = (interp_taus[i] - cumulative_sw[i]) / seg
+
+            # Rescale them back to original grid (between self.tau0 and self.tau1)
+            interp_taus[i] = tau0 + (tau1 - tau0) / (1 - 0) * (interp_taus[i] - 0)
 
         return interp_taus
 
@@ -1349,9 +1442,10 @@ class mpopt:
         returns:
             :residuals: residual vector for the dynamics at the given taus
         """
-        xi, ui, ti, a, Dxi, Dui, taus_grid = self.interpolate_single_phase(
+        xi, ui, ti, a, Dxi, Dui, taus_grid, t0, tf = self.interpolate_single_phase(
             solution, phase=phase, target_nodes=target_nodes, options={}
         )
+
         seg_widths = self._nlp_sw_params[
             self.n_segments * phase : self.n_segments * (phase + 1)
         ]
@@ -1374,20 +1468,22 @@ class mpopt:
                 )
                 f[i] = ca.DM(f[i])
                 t[i] = ti[index]
+
                 index += 1
             if f:
                 f = np.array(f).reshape(len(f), f[0].size()[0])
             start, end = sum(n_taus[:seg]), sum(n_taus[: (seg + 1)])
             if start == end:
                 continue
-            h_seg = (ti[-1] - ti[0]) / (self.tau1 - self.tau0) * seg_widths[seg]
-            F = h_seg.full().reshape(1) * (
-                f * self._ocp.scale_x
-            )  # numpy multiplication
+            h_seg = (tf[0] - t0[0]) / (self.tau1 - self.tau0) * seg_widths[seg]
+            F = h_seg * (f * self._ocp.scale_x)  # numpy multiplication
             residual_phase[seg] = Dxi[start:end, :].full().reshape(F.shape) - F
             dyn_phase[seg] = F
-            ti_phase[seg] = t
+            ti_phase[seg] = np.concatenate(np.array(t).reshape(len(t), 1))
 
+        for i, it in enumerate(ti_phase):
+            if it is None:
+                ti_phase[i] = []
         return ti_phase, residual_phase, dyn_phase
 
     def interpolate_single_phase(
@@ -1444,7 +1540,7 @@ class mpopt:
                 Xi.full(), Ui.full(), ti, fig=fig, axs=axs, legend=False
             )
 
-        return (Xi, Ui, ti, a, DXi, DUi, target_nodes)
+        return (Xi, Ui, ti, a, DXi, DUi, target_nodes, t0, tf)
 
     @staticmethod
     def get_interpolated_time_grid(
@@ -1534,6 +1630,12 @@ class post_process:
             else CollocationRoots._TAU_MAX
         )
 
+        # Residuals data in options
+        if "residuals" in options:
+            self.residuals = options["residuals"]
+        else:
+            self.residuals = None
+
     def get_trajectories(self, phase: int = 0):
         """Get trajectories of states, controls and time vector for single phase
 
@@ -1546,12 +1648,12 @@ class post_process:
                 u - controls
                 t - corresponding time vector
         """
-        if "seg_widths" in self.options:
-            x, u, t, t0, tf, a = self.trajectories[phase](
-                self.solution["x"], self.options["seg_widths"]
-            )
-        else:
-            x, u, t, t0, tf, a = self.trajectories[phase](self.solution["x"])
+        # if "seg_widths" in self.options:
+        x, u, t, t0, tf, a = self.trajectories[phase](
+            self.solution["x"], self.options["seg_widths"]
+        )
+        # else:
+        # x, u, t, t0, tf, a = self.trajectories[phase](self.solution["x"])
         x_opt, u_opt, t_opt, a_opt = (x.full(), u.full(), t.full(), a.full())
 
         scale_t = self.options["scale_t"] if "scale_t" in self.options else 1.0
@@ -1773,6 +1875,7 @@ class post_process:
         self,
         phases: List = None,
         interpolate: bool = True,
+        residuals: bool = True,
         fig=None,
         axs=None,
         tics: List = ["-"] * 15,
@@ -1797,6 +1900,13 @@ class post_process:
             else:
                 phase = [0]
 
+        if residuals:
+            if self.residuals is not None:
+                fig = plt.figure()
+                ax0 = plt.subplot(2, 2, 1)
+                ax1 = plt.subplot(2, 2, 3)
+                axs = [ax0, ax1]
+
         if interpolate:
             xi, ui, ti, _ = self.get_data(phases=phases, interpolate=interpolate)
             fig, axs = self.plot_all(
@@ -1805,6 +1915,72 @@ class post_process:
             tics = ["."] * 15
         x, u, t, _ = self.get_data(phases=phases, interpolate=False)
         fig, axs = self.plot_all(x, u, t, tics=tics, fig=fig, axs=axs, name=name)
+
+        if residuals:
+            if self.residuals is not None:
+                if ("t_x" in self.residuals) and ("t_dx" in self.residuals):
+                    y_data = [
+                        r_seg
+                        for r_p in self.residuals["t_x"][1]
+                        for r_seg in r_p
+                        if r_seg is not None
+                    ]
+
+                    x_data = np.hstack(np.concatenate(self.residuals["t_x"][0]))
+                    y_data = np.concatenate(y_data)
+
+                    ax2 = plt.subplot(2, 2, 2)
+                    dims = y_data.shape[1]
+                    self.plot_curve(ax2, y_data, x_data, "x", "States error", tics=tics)
+
+                    ax3 = plt.subplot(2, 2, 4)
+                    y_data = [
+                        r_seg
+                        for r_p in self.residuals["t_dx"][1]
+                        for r_seg in r_p
+                        if r_seg is not None
+                    ]
+
+                    x_data = np.hstack(np.concatenate(self.residuals["t_dx"][0]))
+                    y_data = np.concatenate(y_data)
+
+                    self.plot_curve(
+                        ax3, y_data, x_data, "dx", "Dynamics error", tics=tics
+                    )
+
+                    axs = [ax0, ax1, ax2, ax3]
+                else:
+                    ax2 = plt.subplot(1, 2, 2)
+                    if "t_x" in self.residuals:
+                        y_data = [
+                            r_seg
+                            for r_p in self.residuals["t_x"][1]
+                            for r_seg in r_p
+                            if r_seg is not None
+                        ]
+
+                        x_data = np.hstack(np.concatenate(self.residuals["t_x"][0]))
+                        y_data = np.concatenate(y_data)
+
+                        self.plot_curve(
+                            ax2, y_data, x_data, "x", "States error", tics=tics
+                        )
+                    else:
+                        y_data = [
+                            np.concatenate(
+                                [r_seg for r_seg in r_p if r_seg is not None]
+                            )
+                            for r_p in self.residuals["t_dx"][1]
+                        ]
+
+                        x_data = np.hstack(np.concatenate(self.residuals["t_dx"][0]))
+                        y_data = np.concatenate(y_data)
+
+                        self.plot_curve(
+                            ax2, y_data, x_data, "dx", "Dynamics error", tics=tics
+                        )
+                    ax2.set(xlabel="Time, s")
+                    axs = [ax0, ax1, ax2]
 
         return fig, axs
 
@@ -2048,7 +2224,7 @@ class post_process:
 
             r = np.concatenate(r)
 
-        t = np.concatenate(np.concatenate(t))
+        t = np.concatenate(t)
         r = r.reshape(t.shape[0], 1)
         return (r, t)
 
@@ -2056,12 +2232,12 @@ class post_process:
     def plot_residuals(
         self,
         time,
-        residuals: np.ndarray = None,
+        residuals,
         phases: List = [0],
         name=None,
         fig=None,
         axs=None,
-        tics=None,
+        tics=["."] * 15,
     ):
         """Plot residual in dynamics"""
         if tics is None:
@@ -2079,6 +2255,14 @@ class post_process:
             name,
             ylabel="residuals",
             tics=tics,
+            legend_index=[""] * 15,
+        )
+        self.plot_curve(
+            axs,
+            r,
+            t,
+            ylabel="residuals",
+            tics=["-"] * 15,
             legend_index=[""] * 15,
         )
         axs.set(xlabel="Time, s")
@@ -2177,6 +2361,10 @@ class mpopt_h_adaptive(mpopt):
             :solution: Solution as reported by the given nlp_solver object
 
         """
+        if not self._MUTE_:
+            print(f"\n *********** MPOPT H-Adaptive Summary ********** \n")
+
+        start_time = time.monotonic()
         if (not self._nlpsolver_initialized) or (reinitialize_nlp):
             if "ipopt.print_level" not in nlp_solver_options:
                 nlp_solver_options["ipopt.print_level"] = 0
@@ -2188,47 +2376,96 @@ class mpopt_h_adaptive(mpopt):
 
         self.iter_count, self.iter_info = 0, dict()
         sw_old = []
-        for iter in range(max_iter):
-            # By default, these paramers are of equal segment width
-            self._nlp_sw_params, max_error = self.get_segment_width_parameters(
-                initial_solution, options=mpopt_options
-            )
-            if self.iter_count > 0:
-                self.iter_info[self.iter_count - 1] = max_error
-
-            if iter > 0:
-                sw_percentage_change = np.array(
-                    [
-                        abs(self._nlp_sw_params[i] - sw_old[i]) / self._nlp_sw_params[i]
-                        <= self._TOL_SEG_WIDTH_CHANGE
-                        for i in range(len(self._nlp_sw_params))
-                    ]
+        new_nlp_sw_params, max_error = self.get_segment_width_parameters(
+            initial_solution, options=mpopt_options
+        )
+        solved = False
+        if max_error is not None:
+            if max_error < min(self.tol_residual):
+                self.iter_info[self.iter_count] = max_error
+                print(
+                    f"Solved to acceptable tolerance {min(self.tol_residual)}",
+                    max_error,
                 )
-                if sw_percentage_change.all():
-                    # print("Stopping the iterations: Change in width less than 5%")
-                    self._nlp_sw_params = sw_old
-                    break
+                solution = initial_solution
+                solved = True
 
-            if (iter == 0) and (initial_solution is None):
-                max_error = None
+        if not solved:
+            for iter in range(max_iter):
+                self._nlp_sw_params = new_nlp_sw_params
+                # By default, these paramers are of equal segment width
 
-            print(f"Iteration : {iter+1}, {max_error}")
-            solver_inputs = self.get_solver_warm_start_input_parameters(
-                initial_solution
-            )
-            solver_inputs["p"] = self._nlp_sw_params
+                if self.iter_count > 0:
+                    self.iter_info[self.iter_count] = max_error
 
-            solution = self.nlp_solver(**solver_inputs, **self.nlp_bounds)
+                    if self.iter_count > 4:
+                        mean_error = np.mean(list(self.iter_info.values())[-4:])
+                        if abs(max_error - mean_error) < 0.05 * abs(max_error):
+                            print(
+                                "Stopping the iterations: Change in max error is < 5%"
+                            )
+                            self._nlp_sw_params = sw_old
+                            break
 
-            # Store the solution in intial_solution
-            initial_solution = solution
-            sw_old = copy.deepcopy(self._nlp_sw_params)
-            self.iter_count += 1
+                if iter > 0:
+                    sw_percentage_change = np.array(
+                        [
+                            abs(self._nlp_sw_params[i] - sw_old[i])
+                            / self._nlp_sw_params[i]
+                            <= self._TOL_SEG_WIDTH_CHANGE
+                            for i in range(len(self._nlp_sw_params))
+                        ]
+                    )
+                    if sw_percentage_change.all():
+                        print(
+                            "Stopping the iterations: Change in width less than 5%",
+                            max_error,
+                        )
+                        self._nlp_sw_params = sw_old
+                        break
 
-            if iter == max_iter - 1:
-                print("Stopping the iterations: Iteration limit exceeded")
+                if (iter == 0) and (initial_solution is None):
+                    max_error = None
 
-        print(f"Adaptive Iter., max_residual : {self.iter_count}, {max_error}")
+                if max_error is not None:
+                    print(f"Iteration : {iter}, {max_error}")
+                solver_inputs = self.get_solver_warm_start_input_parameters(
+                    initial_solution
+                )
+                solver_inputs["p"] = self._nlp_sw_params
+
+                solution = self.nlp_solver(**solver_inputs, **self.nlp_bounds)
+
+                # Store the solution in intial_solution
+                initial_solution = solution
+                sw_old = copy.deepcopy(self._nlp_sw_params)
+
+                new_nlp_sw_params, max_error = self.get_segment_width_parameters(
+                    initial_solution, options=mpopt_options
+                )
+
+                self.iter_count += 1
+
+                if max_error is not None:
+                    if max_error < min(self.tol_residual):
+                        self.iter_info[self.iter_count] = max_error
+                        print(
+                            f"Solved to acceptable tolerance {min(self.tol_residual)}",
+                            max_error,
+                        )
+                        break
+
+                if iter == max_iter - 1:
+                    self.iter_info[self.iter_count] = max_error
+                    print("Stopping the iterations: Iteration limit exceeded")
+
+        end_time = time.monotonic()
+        print(f"H-Adaptive Iter., max_residual : {self.iter_count}, {max_error}")
+
+        if not self._MUTE_:
+            print(" Optimal cost (J): ", solution["f"], "\n")
+            print(f" Solved in {round((end_time - start_time)*1e3, 3)} ms\n")
+            # print(f"\n *********** H-adaptive End ********** \n")
 
         return solution
 
@@ -2251,7 +2488,7 @@ class mpopt_h_adaptive(mpopt):
         returns:
             :seg_widths: Computed segment widths in a 1-D list (each phase followed by previous)
         """
-        max_error = 0.0
+        max_error = None
         default_widths = [1 / self.n_segments] * (self.n_segments * self._ocp.n_phases)
         if self.n_segments == 1:
             return default_widths, max_error
@@ -2301,7 +2538,6 @@ class mpopt_h_adaptive(mpopt):
         ti, residuals = self.get_dynamics_residuals(solution)
 
         if self.plot_residual_evolution:
-            tics = [".", "*", "+", "d", "^"] * 15
             self.fig, self.axs = post_process.plot_residuals(
                 ti,
                 residuals,
@@ -2309,7 +2545,7 @@ class mpopt_h_adaptive(mpopt):
                 name=f"Iter {self.iter_count}",
                 fig=self.fig,
                 axs=self.axs,
-                tics=[tics[self.iter_count]] * 15,
+                tics=["-"] * 15,
             )
             self.fig, self.axs = post_process.plot_residuals(
                 ti,
@@ -2348,6 +2584,10 @@ class mpopt_h_adaptive(mpopt):
                 ERR_TOL=self.tol_residual[phase],
                 method=method,
             )
+            if method == "equal_area":
+                segment_widths[phase] = 0.4 * np.array(
+                    segment_widths[phase]
+                ) + 0.6 * np.array(segment_widths_old)
 
         return np.concatenate(segment_widths), max_error
 
@@ -2579,10 +2819,10 @@ class mpopt_h_adaptive(mpopt):
         # Method -1:         # select max slope entries at each time
         # du_max = du_orig.max(axis=1)
         # Method-2: 2-Norm of the slope
-        # du_max = np.linalg.norm(du_orig, 2, axis=1)
+        du_max = np.linalg.norm(du_orig, 2, axis=1)
 
         # Method-3: Select only one of the control curve slope
-        du_max = np.linalg.norm(du_orig, 2, axis=1)  # du_orig[:, 0]
+        # du_max = np.linalg.norm(du_orig, 2, axis=1)  # du_orig[:, 0]
 
         # Interpolation onto fixed time grid doesnt yeild good results
         # du_grid = np.interp(t_grid, t_orig, du_max)
@@ -2593,6 +2833,8 @@ class mpopt_h_adaptive(mpopt):
             times = np.array(t_du)[:, 0]
         else:
             times = np.array([])
+
+        # print(times[:10])
 
         return times
 
@@ -2651,7 +2893,7 @@ class mpopt_adaptive(mpopt):
         >>> post = opt.process_results(solution, plot=True)
     """
 
-    _SEG_WIDTH_MIN = 1e-2
+    _SEG_WIDTH_MIN = 1e-4
     _SEG_WIDTH_MAX = 1.0
     _TOL_RESIDUAL = 1e-3
 
@@ -2952,7 +3194,9 @@ class mpopt_adaptive(mpopt):
             {
                 "ipopt.max_iter": 2000,
                 "ipopt.acceptable_tol": 1e-4,
-                "ipopt.print_level": 2,
+                "ipopt.print_level": 0,
+                "ipopt.sb": "yes",
+                "print_time": 0,
             }
             if solver == "ipopt"
             else dict()
@@ -3020,17 +3264,25 @@ class mpopt_adaptive(mpopt):
         a = self.A[:, phase]
         t0, tf = self.t0[phase] / self._ocp.scale_t, self.tf[phase] / self._ocp.scale_t
         t = ca.vertcat(*self.time_grid[phase])
+        tmp_seg = ca.SX.sym("htmp_seg", self.n_segments, self._ocp.n_phases)
         trajectories = ca.Function(
             "x_traj",
-            [self.Z],
+            [self.Z, tmp_seg[:]],
             [x, u, t, t0, tf, a],
-            ["z"],
+            ["z", "h"],
             ["x", "u", "t", "t0", "tf", "a"],
         )
 
         return trajectories
 
-    def process_results(self, solution, plot: bool = True, scaling: bool = False):
+    def process_results(
+        self,
+        solution,
+        plot: bool = True,
+        scaling: bool = False,
+        residual_x: bool = False,
+        residual_dx: bool = True,
+    ):
         """Post process the solution of the NLP
 
         args:
@@ -3041,13 +3293,32 @@ class mpopt_adaptive(mpopt):
             :scaling: bool
                 True - Plot the scaled variables
                 False - Plot unscaled variables meaning, original solution to the problem
+            :residuals: bool
+                To plot norma of the residual in the dynamics evaluated at points different from collocation nodes
 
         returns:
             :post: Object of post_process class (Initialized)
+
         """
+        start_time = time.monotonic()
         trajectories = [
             self.init_trajectories(phase) for phase in range(self._ocp.n_phases)
         ]
+        traj_time = time.monotonic()
+
+        resid_value = {}
+        if residual_x:
+            x_int, u_int, ti, res_x = self.get_states_residuals(solution)
+            resid_value["t_x"] = [ti, res_x]
+            rx_time = time.monotonic()
+        if residual_dx:
+            tdx, res_dx = self.get_dynamics_residuals(solution)
+            resid_value["t_dx"] = [tdx, res_dx]
+            rdx_time = time.monotonic()
+        else:
+            resid_value = None
+
+        r_time = time.monotonic()
 
         options = {
             "nx": self._ocp.nx,
@@ -3064,16 +3335,42 @@ class mpopt_adaptive(mpopt):
             "scale_t": self._ocp.scale_t,
             "scaling": scaling,
             "colloc_scheme": self.colloc_scheme,
-            "tau0": CollocationRoots._TAU_MIN,
-            "tau1": CollocationRoots._TAU_MAX,
+            "tau0": self.tau0,
+            "tau1": self.tau1,
             "interpolation_depth": 3,
+            "seg_widths": self._nlp_sw_params,
+            "residuals": resid_value,
         }
+
         post = post_process(solution, trajectories, options)
 
         if plot:
             for phases in self._ocp.phases_to_plot:
-                post.plot_phases(phases)
-            # plt.show()
+                residuals = residual_x or residual_dx
+                post.plot_phases(phases, residuals=residuals)
+
+        post_time = time.monotonic()
+
+        if not self._MUTE_:
+            print(f"\n Post processed in {round((post_time - start_time)*1e3, 3)} ms")
+            print(
+                f" \t Solution retrieval            : {round((traj_time - start_time)*1e3, 3)} ms"
+            )
+            if residual_x:
+                print(
+                    f" \t Residual in states             : {round((rx_time - traj_time)*1e3, 3)} ms"
+                )
+                if residual_dx:
+                    print(
+                        f" \t Residual in dynamics          : {round((rdx_time - rx_time)*1e3, 3)} ms"
+                    )
+            elif residual_dx:
+                print(
+                    f" \t Residual in dynamics           : {round((rdx_time - traj_time)*1e3, 3)} ms"
+                )
+            print(
+                f" \t Process solution and plot      : {round((post_time - r_time)*1e3, 3)} ms"
+            )
 
         return post
 
@@ -3767,7 +4064,7 @@ class Collocation:
         return comp_quad_weights
 
     def get_composite_interpolation_matrix(self, taus, poly_orders: List = None):
-        """Get differentiation matrix corresponding to given basis polynomial degree
+        """Get interpolation matrix corresponding to given basis polynomial degree for colloation.
 
         args:
             :taus: List of scaled taus (between 0 and 1) with length of list equal
@@ -3980,7 +4277,14 @@ class CollocationRoots:
 
 
 def solve(
-    ocp, n_segments=1, poly_orders=9, scheme="LGR", plot=True, solve_dict: Dict = dict()
+    ocp,
+    n_segments=1,
+    poly_orders=9,
+    scheme="LGR",
+    plot=True,
+    solve_dict: Dict = dict(),
+    residual_x: bool = False,
+    residual_dx: bool = True,
 ):
     """Solve OCP by creating optimizer and process results
 
@@ -3997,7 +4301,9 @@ def solve(
     """
     mpo = mpopt(ocp, n_segments=n_segments, poly_orders=poly_orders, scheme=scheme)
     solution = mpo.solve(**solve_dict)
-    post = mpo.process_results(solution, plot=plot)
+    post = mpo.process_results(
+        solution, plot=plot, residual_x=residual_x, residual_dx=residual_dx
+    )
 
     return (mpo, post)
 
@@ -4113,7 +4419,7 @@ class mpopt_ph_adaptive(mpopt):
 
         return max_r_phases
 
-    def solve_ph(self, max_iter=1, grid_type=None, solve_dict: Dict = {}):
+    def solve_ph(self, max_iter=1, solve_dict: Dict = {}):
         """Solve OCP using adaptive ph method
 
         args: Options for the mpopt solver
@@ -4153,8 +4459,8 @@ class mpopt_ph_adaptive(mpopt):
             # taus = [taus for phase in range(self._ocp.n_phases)]
 
             # Step 2 : Compute the maximum residual in the states using gaussian quadrature of dynamics (Refer Anil V. Rao http://dx.doi.org/10.1016/j.jfranklin.2015.05.028)
-            time_r, residual_r = self.get_states_residuals(
-                solution, grid_type=grid_type, residual_type="relative", plot=False
+            _, _, time_r, residual_r = self.get_states_residuals(
+                solution, residual_type="relative", plot=False
             )
             max_residual = self.get_abs_max_residual(residual_r)
 
@@ -4205,9 +4511,8 @@ class mpopt_ph_adaptive(mpopt):
             solution_new = self.solve(reinitialize_nlp=True, **solve_dict)
 
             # Step-2  : Compute the maximum residual in the states using gaussian quadrature of dynamics (Refer Anil V. Rao http://dx.doi.org/10.1016/j.jfranklin.2015.05.028)
-            time_r_new, residual_r_new = self.get_states_residuals(
+            _, _, time_r_new, residual_r_new = self.get_states_residuals(
                 solution_new,
-                grid_type=grid_type,
                 residual_type="relative",
                 plot=False,
             )

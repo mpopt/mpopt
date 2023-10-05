@@ -24,7 +24,7 @@ with open("README.md", "r") as readme_file:
 
 requirements = [
     "wheel>=0.34",
-    "numpy>=1.20.0",
+    "numpy==1.22.0",
     "typing>=3.7",
     "casadi>=3.5.5",
     "matplotlib>=3.2",
@@ -33,7 +33,7 @@ requirements = [
 
 setup(
     name="mpopt",
-    version="0.1.9",
+    version="0.2.2",
     author="Devakumar THAMMISETTY, Colin Jones",
     author_email="deva.aerospace@gmail.com",
     description="A Multi-phase nonlinear Optimal control problem solver using Pseudo-spectral collocation",

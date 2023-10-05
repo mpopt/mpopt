@@ -22,56 +22,47 @@ Created: 5th May 2020
 Author : Devakumar Thammisetty
 """
 try:
-    from mpopt import mp
-except ModuleNotFoundError:
     from context import mpopt
     from mpopt import mp
+except ModuleNotFoundError:
+    from mpopt import mp
 
-ocp = mp.OCP(n_states=2, n_controls=1)
-
-
-def dynamics0(x, u, t):
-    return [x[1], u[0] - 1.5]
-
-
-ocp.dynamics[0] = dynamics0
+# Example 3.10 Nonlinear and Dynamic Optimization: From Theory to Practice. By B. Chachuat 2007 Automatic Control Laboratory, EPFL, Switzerland
+# https://www.epfl.ch/labs/la/wp-content/uploads/2018/08/ic-32_lectures-17-28.pdf
+ocp = mp.OCP(n_states=1, n_controls=1)
 
 
-def running_cost0(x, u, t):
-
-    return u[0]
-
-
-ocp.running_costs[0] = running_cost0
+def dynamics(x, u, t):
+    return [2 * (1 - u[0])]
 
 
-def terminal_constraints0(xf, tf, x0, t0):
+def running_cost(x, u, t):
+    return 0.5 * u[0] * u[0] - x[0]
 
-    return [xf[0], xf[1]]
 
+ocp.dynamics[0] = dynamics
+ocp.running_costs[0] = running_cost
 
-ocp.terminal_constraints[0] = terminal_constraints0
+ocp.x00[0] = [1.0]
+# ocp.lbx[0] = 0
+# ocp.ubx[0] = 1
+ocp.lbtf[0] = 1.0
+ocp.ubtf[0] = 1.0
 
-ocp.tf0[0] = 4.0
-ocp.x00[0] = [10.0, -2.0]
-ocp.lbx[0] = [-20.0, -20.0]
-ocp.ubx[0] = [20.0, 20.0]
-ocp.lbu[0] = 0
-ocp.ubu[0] = 3
-ocp.lbtf[0], ocp.ubtf[0] = 3, 5
+ocpwithsolution = mp.mpopt(ocp, 2, 10)
 
 ocp.validate()
 
 if __name__ == "__main__":
-    import numpy as np
-
-    # mp.post_process._INTERPOLATION_NODES_PER_SEG = 5
-    # mp.mpopt._MAX_GRID_POINTS = 20
-
-    mpo = mp.mpopt_ph_adaptive(ocp, 2, 10, grid_type="spectral", max_residual=1e-6)
-    sol = mpo.solve_ph(max_iter=10)
-    print(mpo.X[0].size())
+    mp.CollocationRoots._TAU_MIN = -1
+    mpo = mp.mpopt(ocp, 10, 3)
+    sol = mpo.solve()
     post = mpo.process_results(sol, plot=True)
-    # x, u, t, _ = post.get_data(interpolate=True)
+    mp.plt.title(
+        f"non-adaptive solution segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
+    )
+    # c = mp.CollocationRoots("LGR")
+    # cf = c._taus_fn
+    # print(cf(2))
 
     mp.plt.show()

@@ -17,47 +17,34 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
-"""
-Created: 5th May 2020
-Author : Devakumar Thammisetty
-"""
+
+import pytest
+
 try:
-    from mpopt import mp
-except ModuleNotFoundError:
     from context import mpopt
     from mpopt import mp
+except ModuleNotFoundError:
+    from mpopt import mp
 
-# https://en.wikipedia.org/wiki/Optimal_control
-ocp = mp.OCP(n_states=1, n_controls=1)
-
-p = 1  # Price
-
-
-def dynamics(x, u, t):
-    return [-u[0]]
-
-
-def running_cost(x, u, t):
-    return u[0] * u[0] / x[0] - p * u[0]
+from examples.singlephase.dae_vdp import vdp
+from examples.singlephase.hyper_sensitive import hysens
+from examples.singlephase.mine_opt_wiki import mineopt
+from examples.singlephase.moon_lander import moon_lander
+from examples.singlephase.ocp_with_solution import ocpwithsolution
+from examples.singlephase.robot_arm import robot_arm
+from examples.singlephase.Betts.alpr01_alp_rider import alpr01
 
 
-ocp.dynamics[0] = dynamics
-ocp.running_costs[0] = running_cost
+@pytest.mark.parametrize(
+    "problem",
+    [vdp, hysens, moon_lander, ocpwithsolution, robot_arm, alpr01],
+)
+def test_singlephase(problem):
+    solution = problem.solve()
+    post = problem.process_results(solution)
+    print(solution.keys())
 
-ocp.x00[0] = [1.0]
-ocp.lbx[0] = 0
-ocp.ubx[0] = 1.0
-ocp.lbtf[0] = 1.0
-ocp.ubtf[0] = 1.0
+    for key in ["f", "g", "lam_g", "lam_p", "lam_x", "x"]:
+        assert key in solution
 
-ocp.validate()
-
-if __name__ == "__main__":
-    mpo = mp.mpopt(ocp, 1, 30)
-    sol = mpo.solve()
-    post = mpo.process_results(sol, plot=True)
-    mp.plt.title(
-        f"non-adaptive solution segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
-    )
-
-    mp.plt.show()
+    assert post is not None

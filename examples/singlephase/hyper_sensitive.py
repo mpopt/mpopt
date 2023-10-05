@@ -18,79 +18,59 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 """
-Created: 5th May 2020
+Created: 13th May 2020
 Author : Devakumar Thammisetty
+Description : Hyper-sensitive OCP
 """
 try:
-    from mpopt import mp
-except ModuleNotFoundError:
     from context import mpopt
     from mpopt import mp
+except ModuleNotFoundError:
+    from mpopt import mp
 
-ocp = mp.OCP(n_states=2, n_controls=1)
+ocp = mp.OCP(n_states=1, n_controls=1, n_phases=1)
 
+ocp.dynamics[0] = lambda x, u, t: [-x[0] * x[0] * x[0] + u[0]]
+ocp.running_costs[0] = lambda x, u, t: 0.5 * (x[0] * x[0] + u[0] * u[0])
+ocp.terminal_constraints[0] = lambda xf, tf, x0, t0: [xf[0] - 1.0]
 
-def dynamics0(x, u, t):
-    return [x[1], u[0] - 1.5]
-
-
-ocp.dynamics[0] = dynamics0
-
-
-def running_cost0(x, u, t):
-
-    return u[0]
-
-
-ocp.running_costs[0] = running_cost0
-
-
-def terminal_constraints0(xf, tf, x0, t0):
-
-    return [xf[0], xf[1]]
-
-
-ocp.terminal_constraints[0] = terminal_constraints0
-
-ocp.tf0[0] = 4.0
-ocp.x00[0] = [10.0, -2.0]
-ocp.lbx[0] = [0.0, -20.0]
-ocp.ubx[0] = [20.0, 20.0]
-ocp.lbu[0] = 0
-ocp.ubu[0] = 3
-ocp.lbtf[0], ocp.ubtf[0] = 3, 5
+ocp.x00[0] = 1
+ocp.lbtf[0] = ocp.ubtf[0] = 1000.0
+ocp.scale_t = 1 / 1000.0
 
 ocp.validate()
 
-if __name__ == "__main__":
-    mpo = mp.mpopt(ocp, 5, 4)
-    sol = mpo.solve()
-    post = mpo.process_results(sol, plot=True)
-    mp.plt.title(
-        f"non-adaptive solution segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
-    )
+seg, p = 50, 3
+hysens = mp.mpopt(ocp, seg, p)
 
-    mpo = mp.mpopt_h_adaptive(ocp, 10, 4)
+if __name__ == "__main__":
+    seg, p = 5, 20
+    # mpo = mp.mpopt(ocp, seg, p)
+    # sol = mpo.solve()
+    # post = mpo.process_results(sol)
+    # mp.plt.title(
+    #     f"non-adaptive solution segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
+    # )
+
+    mpo = mp.mpopt_h_adaptive(ocp, seg, p)
     sol = mpo.solve(
-        max_iter=3, mpopt_options={"method": "residual", "sub_method": "merge_split"}
+        max_iter=10, mpopt_options={"method": "residual", "sub_method": "merge_split"}
     )
     post = mpo.process_results(sol, plot=True)
     mp.plt.title(
         f"Adaptive solution: merge_split : segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
     )
-    # mp.plt.savefig("docs/plots/ml_h_ad_merge_split.png")
 
-    mpo = mp.mpopt_h_adaptive(ocp, 10, 4)
+    mpo = mp.mpopt_h_adaptive(ocp, seg, p)
     sol = mpo.solve(
-        max_iter=2, mpopt_options={"method": "residual", "sub_method": "equal_area"}
+        max_iter=10, mpopt_options={"method": "residual", "sub_method": "equal_area"}
     )
     post = mpo.process_results(sol, plot=True)
     mp.plt.title(
         f"Adaptive solution: equal_residual : segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
     )
-    # mp.plt.savefig("docs/plots/ml_h_ad_eq_res.png")
 
-    mpo = mp.mpopt_h_adaptive(ocp, 5, 4)
+    mpo = mp.mpopt_h_adaptive(ocp, seg, p)
     sol = mpo.solve(
         max_iter=10, mpopt_options={"method": "control_slope", "sub_method": ""}
     )
@@ -98,16 +78,14 @@ if __name__ == "__main__":
     mp.plt.title(
         f"Adaptive solution: Control slope : segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
     )
-    # mp.plt.savefig("docs/plots/ml_h_ad_c_slope.png")
 
-    mpo = mp.mpopt_adaptive(ocp, 3, 2)
-    mpo.lbh[0] = 1e-6
+    mpo = mp.mpopt_adaptive(ocp, 3, 30)
+    mpo._SEG_WIDTH_MIN = 1e-6
+    mpo.__init__(ocp, 3, 30)
     mpo.mid_residuals = True
     sol = mpo.solve()
     post = mpo.process_results(sol, plot=True)
     mp.plt.title(
         f"Adaptive solution: Direct opt. : segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
     )
-    # mp.plt.savefig("docs/plots/ml_ad.png")
-
     mp.plt.show()

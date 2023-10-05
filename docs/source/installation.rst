@@ -22,8 +22,9 @@ Installation
 
    git clone https://github.com/mpopt/mpopt.git --branch master
    cd mpopt
-   make install
-   make test
+   make build
+   make run
+   source env/bin/activate
 
 For discussions related to installation, refer `issues <https://github.com/mpopt/mpopt/discussions/14>`_
 

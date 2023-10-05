@@ -13,10 +13,9 @@ Solve moon-lander OCP in under 10 lines
 
 **OCP** :
 
-Find optimal path, i.e Height ( :math:`x_0` ), Velocity (
-:math:`x_1` ) and Throttle ( :math:`u` ) to reach the surface: Height
-(0m), Velocity (0m/s) from Height (10m) and velocity(-2m/s) with minimum
-fuel (u).
+Find optimal path to reach the moon surface with minimum
+fuel (u). From :Height(0m), Velocity (0m/s) from Height (10m) and velocity(-2m/s) to Height ( :math:`x_0` ), Velocity (
+:math:`x_1` ) and Throttle ( :math:`u` ).
 
 .. math::
 

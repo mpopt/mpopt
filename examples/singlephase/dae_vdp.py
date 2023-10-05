@@ -19,11 +19,11 @@
 #
 """Van der Pol oscilator OCP from https://web.casadi.org/docs/
 """
-# try:
-#     from mpopt import mp
-# except ModuleNotFoundError:
-from context import mpopt
-from mpopt import mp
+try:
+    from context import mpopt
+    from mpopt import mp
+except ModuleNotFoundError:
+    from mpopt import mp
 
 ocp = mp.OCP(n_states=2, n_controls=1, n_params=1)
 
@@ -59,35 +59,45 @@ ocp.ubtf[0] = 10.0
 
 ocp.validate()
 
+seg, p = 50, 3
+
+vdp = mp.mpopt(ocp, seg, p)
+
 if __name__ == "__main__":
     mp.post_process._INTERPOLATION_NODES_PER_SEG = 200
 
-    seg, p = 30, 3
-    mpo, lg = mp.solve(ocp, seg, p, "LGR", plot=False)
-    # mpo, lg = mp.solve(ocp, seg, p, "LGL", plot=False)
-    # mpo, lg = mp.solve(ocp, seg, p, "CGL", plot=False)
-    x, u, t, a = lg.get_data()
-    print(a)
-
-    fig, axs = lg.plot_phases(name="LGR")
-    # fig, axs = lgl.plot_phases(fig=fig,
-    # axs=axs, name="LGL")
+    seg, p = 5, 3
+    # mpo_lgr, lgr = mp.solve(ocp, seg, p, "LGR", plot=False)
+    # mpo_lgl, lgl = mp.solve(ocp, seg, p, "LGL", plot=False)
+    # mpo_cgl, cgl = mp.solve(ocp, seg, p, "CGL", plot=False)
+    #
+    # fig, axs = lgr.plot_phases(name="LGL")
     # fig, axs = cgl.plot_phases(fig=fig, axs=axs, name="CGL")
-    mp.plt.title(
-        f"non-adaptive solution segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
-    )
+    # mp.plt.title(
+    #     f"non-adaptive solution segments = {mpo.n_segments} poly={mpo.poly_orders[0]}"
+    # )
 
+    resids = dict()
+    fig = mp.plt.figure()
     mp.mpopt_h_adaptive._TOL_RESIDUAL = 1e-4
-    mph = mp.mpopt_h_adaptive(ocp, seg, p)
-    solh = mph.solve(
-        max_iter=10, mpopt_options={"method": "residual", "sub_method": "merge_split"}
-    )
-    posth = mph.process_results(solh, plot=False)
+    mp.mpopt_h_adaptive._TOL_SEG_WIDTH_CHANGE = 0.01
+    for seg in range(5, 15):
+        mpo = mp.mpopt_h_adaptive(ocp, seg, p)
+        solh = mpo.solve(
+            max_iter=20,
+            mpopt_options={"method": "control_slope", "sub_method": "equal_area"},
+        )
+
+        resids[seg] = mpo.iter_info
+        mp.plt.plot(list(mpo.iter_info.keys()), list(mpo.iter_info.values()), label=seg)
+
+    mp.plt.legend()
+    posth = mpo.process_results(solh, plot=False)
     fig, axs = posth.plot_phases(fig=None, axs=None)
-    mp.plt.title(
-        f"Adaptive solution segments = {mph.n_segments} poly={mph.poly_orders[0]}"
-    )
-    x, u, t, a = posth.get_data()
-    t, r = mph.get_dynamics_residuals(solh, plot=True)
-    # print(a)
+    # mp.plt.title(
+    #     f"Adaptive solution segments = {mph.n_segments} poly={mph.poly_orders[0]}"
+    # )
+    # x, u, t, a = posth.get_data()
+    # t, r = mph.get_dynamics_residuals(solh, plot=True)
+    # # print(a)
     mp.plt.show()
