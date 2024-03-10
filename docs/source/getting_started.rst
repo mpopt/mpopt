@@ -58,7 +58,7 @@ fuel (u). From :Height(0m), Velocity (0m/s) from Height (10m) and velocity(-2m/s
 
 For issues related to getting started examples, refer `issues <https://github.com/mpopt/mpopt/discussions/13>`_
 
-Next steps: `Examples <examples>`_, `Notebooks <notebooks>`_
+Next steps: :doc:`./examples`_, :doc:`./notebooks`_
 
 .. toctree::
    :maxdepth: 1
