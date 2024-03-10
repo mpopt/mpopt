@@ -41,7 +41,7 @@ from examples.singlephase.Betts.alpr01_alp_rider import alpr01
 )
 def test_singlephase(problem):
     solution = problem.solve()
-    post = problem.process_results(solution)
+    post = problem.process_results(solution, plot=False)
     print(solution.keys())
 
     for key in ["f", "g", "lam_g", "lam_p", "lam_x", "x"]:
