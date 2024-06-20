@@ -31,9 +31,7 @@ venv: $(VIRTUAL_ENV) ## >> install virtualenv and setup the virtual environment
 
 $(VIRTUAL_ENV):
 	@echo "$(ccso)--> Install and setup virtualenv $(ccend)"
-	python3 -m pip install --upgrade pip
-	python3 -m pip install virtualenv
-	virtualenv --python python3 $(VIRTUAL_ENV)
+	python3 -m venv $(VIRTUAL_ENV)
 
 build: ##@main >> build the virtual environment with an ipykernel for jupyter and install requirements
 		@echo ""
