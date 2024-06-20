@@ -1,7 +1,5 @@
 [![pypi
 pacakge](https://img.shields.io/pypi/v/mpopt.svg)](https://pypi.org/project/mpopt)
-[![Build
-Status](https://travis-ci.org/mpopt/mpopt.svg?branch=master)](https://travis-ci.org/mpopt/mpopt.svg?branch=master)
 [![Coverage
 Status](https://coveralls.io/repos/github/mpopt/mpopt/badge.svg)](https://coveralls.io/github/mpopt/mpopt)
 [![Documentation
@@ -95,14 +93,51 @@ x, u, t, _ = post.get_data()
 mp.plt.show()
 ```
 
--  Experiment with different collocation schemes by changing "LGR" to "CGL" or "LGL" in the above script.
--  Update the grid to recompute solution (Ex. n_segments=3, poly_orders=[3, 30, 3]).
--  For a detailed demo of the mpopt features, refer the notebook [getting_started.ipynb](https://github.com/mpopt/mpopt/blob/master/getting_started.ipynb)
-
 Resources
-------------
--  Detailed implementation aspects of MPOPT are part of the [master thesis](https://github.com/mpopt/mpopt/blob/01f4612ec84a5f6bec8f694c19b129d9fbc12527/docs/Devakumar-Master-Thesis-Report.pdf).
--  Documentation at [mpopt.readthedocs.io/](mpopt.readthedocs.io/)
+---------------
+
+-   Detailed implementation aspects of MPOPT are part of the [master
+    thesis](http://dx.doi.org/10.13140/RG.2.2.19519.79528).
+-   Quick introduction
+    [presentation](http://dx.doi.org/10.13140/RG.2.2.14486.63040).
+-   List of solved [examples](examples)
+-   Features of MPOPT in [Jupyter
+    Notebooks](docs/source/notebooks/getting_started.ipynb)
+
+A pdf version of this documentation can be downloaded from [PDF
+document](https://mpopt.readthedocs.io/_/downloads/en/latest/pdf/)
+
+A must read Jupyter notebook on MPOPT features [Getting
+Started](docs/source/notebooks/getting_started.ipynb)
+
+Case studies
+--------------
+
+-   Quick demo of the solver using simple moon-lander fuel minimization
+    OCP (bang-bang type control), refer [Quick features demo
+    notebook](docs/source/notebooks/getting_started.ipynb) for more details. The
+    image below shows the optimal altitude and the velocity profile
+    (states) along with the optimal throttle (controls) to get minimum
+    fuel trajectory to land on the Moon.
+
+![image](docs/source/_static/ml_adaptive.png)
+
+-   A complex real-world example of The SpaceX falcon9 rocket orbital
+    launch with the booster recovery results are shown below. OCP is
+    defined to find the optimal trajectory and the thrust profile for
+    booster return, refer [SpaceX Falcon9 booster recovery
+    notebook](docs/source/notebooks/falcon9_to_orbit.ipynb) for more details. The
+    first image below is the MPOPT solution using adaptive mesh and the
+    second one is the real-time data of the SpaceX Falcon9 launch of
+    NROL76 mission. The ballistic altitude profile of the booster is
+    evident in both MPOPT solution and the real-time telemetry. Further,
+    the MPOPT velocity solution compares well with the real-time data
+    even though the formulation is only a first order representation of
+    the actual booster recovery problem.
+
+![image](docs/source/_static/falcon9_mpopt.svg)
+
+![image](docs/source/_static/real_time_falcon9_NROL76.png)
 
 Features and Limitations
 ---------------------------

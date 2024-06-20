@@ -1,4 +1,4 @@
-pip==20.1.1
+pip==24.0
 numpy==2.0.0
 typing==3.7.4.1
 casadi==3.6.5

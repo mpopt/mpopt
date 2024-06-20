@@ -24,16 +24,16 @@ with open("README.md", "r") as readme_file:
 
 requirements = [
     "wheel>=0.34",
-    "numpy==1.22.0",
+    "numpy==2.0.0",
     "typing>=3.7",
-    "casadi>=3.5.5",
-    "matplotlib>=3.2",
-    "scipy>=1.4",
+    "casadi>=3.6.5",
+    "matplotlib>=3.9.0",
+    "scipy>=1.13.1",
 ]
 
 setup(
     name="mpopt",
-    version="0.2.2",
+    version="1.0",
     author="Devakumar THAMMISETTY, Colin Jones",
     author_email="deva.aerospace@gmail.com",
     description="A Multi-phase nonlinear Optimal control problem solver using Pseudo-spectral collocation",
@@ -43,9 +43,7 @@ setup(
     packages=find_packages(),
     install_requires=requirements,
     classifiers=[
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
-        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.12",
         "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
         #'Intended Audience :: Developers, Research community across Academic and Public institutions',
         # "Topic :: Software Development :: Optimal Control, collocation, numerical optimization",
@@ -58,5 +56,5 @@ setup(
         "Source": "https://github.com/mpopt/mpopt/",
         "Tracker": "https://github.com/mpopt/mpopt/issues",
     },
-    python_requires=">=3.7.5",
+    python_requires=">=3.12",
 )

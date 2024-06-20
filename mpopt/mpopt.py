@@ -1972,8 +1972,7 @@ class post_process:
                             )
                             for r_p in self.residuals["t_dx"][1]
                         ]
-
-                        x_data = np.hstack(np.concatenate(self.residuals["t_dx"][0]))
+                        x_data = np.hstack(np.concatenate(self.residuals["t_dx"][0][0]))
                         y_data = np.concatenate(y_data)
 
                         self.plot_curve(
@@ -3870,7 +3869,7 @@ class Collocation:
                     "pint",
                     "idas",
                     {"x": ca.SX.sym("x"), "t": self.TVAR, "ode": self.polys[key][i]},
-                    {"t0": tau0, "tf": tau1},
+                    tau0, tau1
                 )
                 quad_weights[i] = pint(x0=0)[
                     "xf"
