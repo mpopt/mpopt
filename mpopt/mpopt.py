@@ -1972,7 +1972,10 @@ class post_process:
                             )
                             for r_p in self.residuals["t_dx"][1]
                         ]
-                        x_data = np.hstack(np.concatenate(self.residuals["t_dx"][0][0]))
+                        if len(self.residuals["t_dx"]) == 1:
+                            x_data = np.hstack(np.concatenate(self.residuals["t_dx"][0][0]))
+                        else :
+                            x_data = np.hstack(np.concatenate(self.residuals["t_dx"][0]))
                         y_data = np.concatenate(y_data)
 
                         self.plot_curve(
