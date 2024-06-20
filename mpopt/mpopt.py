@@ -4418,7 +4418,7 @@ class mpopt_ph_adaptive(mpopt):
 
         return max_r_phases
 
-    def solve_ph(self, max_iter=1, solve_dict: Dict = {}):
+    def solve_ph(self, max_iter=1, solve_dict: Dict = {}, grid_type=None):
         """Solve OCP using adaptive ph method
 
         args: Options for the mpopt solver
