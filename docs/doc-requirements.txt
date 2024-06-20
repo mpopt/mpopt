@@ -7,6 +7,6 @@ sphinx-design
 numpy==2.0.0
 typing==3.7.4.1
 casadi==3.6.5
-pytest==5.4.1
+pytest==8.2.2
 matplotlib==3.9.0
 scipy==1.13.1
