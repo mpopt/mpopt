@@ -54,7 +54,7 @@ fuel (u). From :Height(0m), Velocity (0m/s) from Height (10m) and velocity(-2m/s
 -  Update the grid to recompute solution (Ex. n_segments=3,
    poly_orders=[3, 30, 3]).
 -  For a detailed demo of the mpopt features, refer the notebook
-   `getting_started.ipynb <https://github.com/mpopt/mpopt/blob/master/docs/notebooks/getting_started.ipynb>`_
+   `getting_started.ipynb <https://github.com/mpopt/mpopt/blob/master/docs/source/notebooks/getting_started.ipynb>`_
 
 For issues related to getting started examples, refer `issues <https://github.com/mpopt/mpopt/discussions/13>`_
 
