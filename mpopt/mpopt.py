@@ -1972,11 +1972,14 @@ class post_process:
                             )
                             for r_p in self.residuals["t_dx"][1]
                         ]
-                        if len(self.residuals["t_dx"]) == 1:
-                            x_data = np.hstack(np.concatenate(self.residuals["t_dx"][0][0]))
-                        else :
-                            x_data = np.hstack(np.concatenate(self.residuals["t_dx"][0]))
                         y_data = np.concatenate(y_data)
+
+                        x_data = np.concatenate([
+                        r_seg
+                        for r_p in self.residuals["t_dx"][0]
+                        for r_seg in r_p
+                        if r_seg is not None
+                        ])
 
                         self.plot_curve(
                             ax2, y_data, x_data, "dx", "Dynamics error", tics=tics

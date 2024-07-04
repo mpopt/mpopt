@@ -318,7 +318,7 @@ ocp.du_continuity[2] = 1
 # ocp.lbdu[2] = -5
 # ocp.ubdu[2] = 5
 case = "adp3"
-options = {"method": "control_slope", "sub_method": ""}
+options = {"method": "control_slope", "sub_method": "equal_area"}
 # options = {"method": "residual", "sub_method": "equal_area"}
 seg = 3
 p = [11] * seg
@@ -359,11 +359,11 @@ print("Final mass : ", -sol["f"] * m0)
 # Post processing
 post = mpo.process_results(sol, plot=False, scaling=False)
 post._INTERPOLATION_NODES_PER_SEG = 200
-x1, u1, t1 = post.get_data(phases=[0], interpolate=False)
+x1, u1, t1, _ = post.get_data(phases=[0], interpolate=False)
 print(x1[-1], u1[-1], t1[-1])
 # ************** Plot height and velocity ************************
 for id, phase_link in enumerate(ocp.phase_links):
-    x, u, t = post.get_data(phases=phase_link, interpolate=True)
+    x, u, t, _ = post.get_data(phases=phase_link, interpolate=True)
     # figx, _ = post.plot_x([[0, 1, 2], [3, 4, 5], [6]])
     figu, axsu = post.plot_u(dims=[0, 1, 2], phases=phase_link)
     # figu, axsu = post.plot_u(
@@ -376,7 +376,7 @@ for id, phase_link in enumerate(ocp.phase_links):
     y = np.column_stack((r, v))
     fig, axs = post.plot_single_variable(y, t, [[0], [1]], axis=0)
 
-    x, u, t = post.get_data(phases=phase_link, interpolate=False)
+    x, u, t , _= post.get_data(phases=phase_link, interpolate=False)
     r = 1e-3 * (np.sqrt(x[:, 0] ** 2 + x[:, 1] ** 2 + x[:, 2] ** 2) - Re)
     v = np.sqrt(x[:, 3] ** 2 + x[:, 4] ** 2 + x[:, 5] ** 2)
     y = np.column_stack((r, v))
@@ -387,12 +387,12 @@ for id, phase_link in enumerate(ocp.phase_links):
     mp.plt.savefig(f"plots/falc_to_orbit_{case}_hv{id}_s{seg}p{p[0]}.eps")
     print("Final mass, time : ", x[-1][-1], t[-1])
 
-x0, u0, t0 = post.get_data(phases=ocp.phase_links[0], interpolate=True)
-x1, u1, t1 = post.get_data(phases=ocp.phase_links[1], interpolate=True)
-x0o, u0o, t0o = post.get_data(phases=ocp.phase_links[0], interpolate=False)
-x1o, u1o, t1o = post.get_data(phases=ocp.phase_links[1], interpolate=False)
+x0, u0, t0, _ = post.get_data(phases=ocp.phase_links[0], interpolate=True)
+x1, u1, t1, _ = post.get_data(phases=ocp.phase_links[1], interpolate=True)
+x0o, u0o, t0o, _ = post.get_data(phases=ocp.phase_links[0], interpolate=False)
+x1o, u1o, t1o, _ = post.get_data(phases=ocp.phase_links[1], interpolate=False)
 
-x_0, u_0, t_0 = post.get_data(phases=[0], interpolate=True)
+x_0, u_0, t_0, _ = post.get_data(phases=[0], interpolate=True)
 print(t_0[-1], t0[-1], t1[-1])
 r0 = 1e-3 * (np.sqrt(x0[:, 0] ** 2 + x0[:, 1] ** 2 + x0[:, 2] ** 2) - Re)
 v0 = 1e-3 * np.sqrt(x0[:, 3] ** 2 + x0[:, 4] ** 2 + x0[:, 5] ** 2)
@@ -437,14 +437,14 @@ axs1o[1].set(ylabel="Velocity, km/s", title="Velocity profile")
 mp.plt.subplots_adjust(bottom=0.1, left=0.1)
 mp.plt.savefig(f"plots/falc_to_orbit_{case}_lgr_s{seg}p{p[0]}.eps")
 
-x, u, t = post.get_data(phases=[0], interpolate=True)
-x2, u2, t2 = post.get_data(phases=[2], interpolate=True)
+x, u, t, _ = post.get_data(phases=[0], interpolate=True)
+x2, u2, t2, _ = post.get_data(phases=[2], interpolate=True)
 u = np.vstack((Thrust[0] * u, Thrust[1] * u2))
 t = np.hstack((t, t2))
 
 fig, axs = post.plot_single_variable(u * 1e-3, t, [[3]], axis=0)
-x, u, t = post.get_data(phases=[0], interpolate=False)
-x2, u2, t2 = post.get_data(phases=[2], interpolate=False)
+x, u, t, _ = post.get_data(phases=[0], interpolate=False)
+x2, u2, t2, _ = post.get_data(phases=[2], interpolate=False)
 u = np.vstack((Thrust[0] * u, Thrust[1] * u2))
 t = np.vstack((t, t2))
 fig, axs = post.plot_single_variable(
